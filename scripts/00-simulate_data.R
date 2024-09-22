@@ -45,4 +45,4 @@ simulated_data <- tibble(
 )
 
 #### Write_csv ####
-write_csv(simulated_data, file = "data/raw_data/simulated_traffic.csv")
+write_csv(simulated_data, file = "data/raw_data/simulated_collision_data.csv")
