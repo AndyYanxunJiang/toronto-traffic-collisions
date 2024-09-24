@@ -1,0 +1,140 @@
+---
+title: "Traffic Collisions in Toronto: Analysis of Key Variables"
+subtitle: "An Analysis of Traffic Collision Data from 2014-2024"
+author: 
+  - Andy Jiang
+thanks: "Code and data are available at: https://github.com/AndyYanxunJiang/toronto-traffic-collisions.git"
+date: 24 September 2024
+date-format: long
+abstract: "This paper analyzes traffic collision data in Toronto from 2014 to 2024. It explores trends in collisions by month, year, and neighborhood, examining variables such as fatalities, injuries, and property damage. The analysis is done using R, with visualizations produced through ggplot2."
+format: pdf
+number-sections: true
+bibliography: references.bib
+---
+
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(knitr)
+
+
+# Load the cleaned data
+data <- read_csv(here::here("data/analysis_data/cleaned_collision_data.csv"))
+
+# Optional: Convert relevant variables to factors
+data <- data %>%
+  mutate(OCC_MONTH = factor(OCC_MONTH, levels = month.name),
+         INJURY_COLLISIONS = as.factor(INJURY_COLLISIONS),
+         FTR_COLLISIONS = as.factor(FTR_COLLISIONS),
+         PD_COLLISIONS = as.factor(PD_COLLISIONS),
+         AUTOMOBILE = as.factor(AUTOMOBILE),
+         PEDESTRIAN = as.factor(PEDESTRIAN))
+```
+
+# Introduction
+This paper analyzes traffic collision data in Toronto from 2014 to 2024. We explore trends in monthly, yearly, and neighborhood-level collisions, with a focus on variables such as fatalities, injuries, property damage, and modes of transport involved. The data is sourced from Open Data Toronto and contains detailed information about each collision.
+
+The remainder of this paper is structured as follows. Section @sec-data provides details of the dataset used in this analysis. Section @sec-results presents the results of the analysis, followed by a discussion in Section @sec-discussion. Finally, Section @sec-conclusion summarizes the key findings of the study.
+
+
+# Data {#sec-data}
+The dataset used in this analysis was obtained from Open Data Toronto. It includes traffic collision data collected between 2014 and 2024. The variables include the date and time of the collision, whether there were fatalities, injuries, or property damage, and the type of vehicle(s) involved. @tbl-1 provides a sample of the cleaned dataset.
+
+```{r}
+#| label: tbl-1
+#| tbl-cap: Sample of the cleaned collision data
+#| echo: false
+
+head(data, 10) |>
+  kable(
+    col.names = c("Month", "Day of Week", "Year", "Hour", "Fatalities",
+                  "Injury Collisions", "FTR Collisions", "PD Collisions", 
+                  "Neighbourhood", "Automobile", "Motorcycle", 
+                  "Passenger", "Bicycle", "Pedestrian"),
+    booktabs = TRUE
+  )
+```
+
+
+# Results {#sec-results}
+Here we analyze the data by looking at the frequency of traffic collisions based on various factors such as month, year, and neighborhood.
+
+Collisions by Month
+The following figure shows the distribution of collisions by month across all years.
+
+```{r}
+#| label: fig-collisions-month
+#| fig-cap: Collisions by Month
+#| echo: false
+
+data %>% 
+  ggplot(aes(x = OCC_MONTH, fill = factor(OCC_YEAR))) +
+  geom_bar(position = "dodge") +
+  theme_minimal() +
+  labs(title = "Traffic Collisions by Month (2014-2024)",
+       x = "Month", y = "Count", fill = "Year") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Collisions by Hour of the Day
+
+```{r}
+#| label: fig-collisions-hour
+#| fig-cap: Collisions by Hour of the Day
+#| echo: false
+
+data %>% 
+  ggplot(aes(x = OCC_HOUR, fill = factor(OCC_YEAR))) +
+  geom_histogram(binwidth = 1, position = "dodge") +
+  theme_minimal() +
+  labs(title = "Traffic Collisions by Hour of the Day (2014-2024)",
+       x = "Hour", y = "Count", fill = "Year")
+
+```
+
+```{r}
+#| label: fig-monthly-collisions
+#| fig-cap: Monthly distribution of traffic collisions
+#| echo: false
+
+data %>%
+  count(OCC_MONTH) %>%
+  ggplot(aes(x = OCC_MONTH, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  theme_minimal() +
+  labs(title = "Monthly Distribution of Traffic Collisions", 
+       x = "Month", y = "Number of Collisions")
+
+
+```
+
+```{r}
+#| label: fig-fatalities-by-year
+#| fig-cap: Yearly trend in fatalities from collisions
+#| echo: false
+
+data %>%
+  group_by(OCC_YEAR) %>%
+  summarize(Total_Fatalities = sum(FATALITIES, na.rm = TRUE)) %>%
+  ggplot(aes(x = OCC_YEAR, y = Total_Fatalities)) +
+  geom_line(color = "darkred", size = 1) +
+  theme_minimal() +
+  labs(title = "Fatalities by Year", x = "Year", y = "Number of Fatalities")
+
+```
+\newpage
+# Discussion {#sec-discussion}
+Overall, the analysis of traffic collisions from 2014 to 2024 reveals several key trends. Traffic collisions are more frequent during certain months of the year, with higher occurrences during the winter months, potentially due to hazardous road conditions. The distribution of collisions by hour of the day indicates that rush hours experience the highest number of collisions. The relationship between fatalities and injury collisions suggests that even non-fatal collisions result in significant injuries, emphasizing the need for road safety interventions.
+
+# Conclusion {#sec-conclusion}
+This analysis highlights the importance of studying traffic collision data to inform policy decisions and road safety measures. Further analysis could include a more detailed breakdown by specific neighborhoods or examining the impact of weather conditions on collision frequency.
+
+
+\newpage
+
+
+# References
+

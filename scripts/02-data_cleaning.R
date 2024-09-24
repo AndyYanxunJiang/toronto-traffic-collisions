@@ -21,3 +21,4 @@ cleaned_data <- raw_data %>%
 
 #### Save the cleaned data ####
 write_csv(cleaned_data, "data/analysis_data/cleaned_collision_data.csv")
+
