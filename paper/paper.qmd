@@ -6,7 +6,7 @@ author:
 thanks: "Code and data are available at: https://github.com/AndyYanxunJiang/toronto-traffic-collisions.git"
 date: 24 September 2024
 date-format: long
-abstract: "This paper analyzes traffic collision data in Toronto from 2014 to 2024. It explores trends in collisions by month, year, and neighborhood, examining variables such as fatalities, injuries, and property damage. The analysis is done using R, with visualizations produced through ggplot2."
+abstract: "This paper analyzes traffic collision data in Toronto from 2014 to 2024. It explores trends in collisions by month, year, and neighborhood, examining variables such as fatalities, injuries, and property damage. The analysis is done using @citeR, with visualizations produced through ggplot2."
 format: pdf
 number-sections: true
 bibliography: references.bib
@@ -19,19 +19,24 @@ bibliography: references.bib
 
 library(tidyverse)
 library(knitr)
+library(kableExtra)
+library(opendatatoronto)
+library(here)
+library(tidyr)
+library(dplyr)
+library(janitor)
+library(VennDiagram)
 
 
 # Load the cleaned data
 data <- read_csv(here::here("data/analysis_data/cleaned_collision_data.csv"))
 
-# Optional: Convert relevant variables to factors
+# Convert relevant variables to factors
 data <- data %>%
   mutate(OCC_MONTH = factor(OCC_MONTH, levels = month.name),
          INJURY_COLLISIONS = as.factor(INJURY_COLLISIONS),
          FTR_COLLISIONS = as.factor(FTR_COLLISIONS),
-         PD_COLLISIONS = as.factor(PD_COLLISIONS),
-         AUTOMOBILE = as.factor(AUTOMOBILE),
-         PEDESTRIAN = as.factor(PEDESTRIAN))
+         PD_COLLISIONS = as.factor(PD_COLLISIONS))
 ```
 
 # Introduction
@@ -48,13 +53,16 @@ The dataset used in this analysis was obtained from Open Data Toronto. It includ
 #| tbl-cap: Sample of the cleaned collision data
 #| echo: false
 
-head(data, 10) |>
+# Display the cleaned collision data
+head(data, 10) %>%
+  
+  # Use kable to format the table with custom column names
   kable(
-    col.names = c("Month", "Day of Week", "Year", "Hour", "Fatalities",
-                  "Injury Collisions", "FTR Collisions", "PD Collisions", 
-                  "Neighbourhood", "Automobile", "Motorcycle", 
-                  "Passenger", "Bicycle", "Pedestrian"),
-    booktabs = TRUE
+    col.names = c(
+      "Month", "Day of Week", "Year", "Hour", "Fatalities",
+      "Injury Collisions", "FTR Collisions", "PD Collisions"
+    ),
+    align = 'c'
   )
 ```
 
@@ -67,49 +75,82 @@ The following figure shows the distribution of collisions by month across all ye
 
 ```{r}
 #| label: fig-collisions-month
-#| fig-cap: Collisions by Month
+#| fig-cap: Monthly traffic collision counts in Toronto from 2014 to 2024.
 #| echo: false
-
-data %>% 
-  ggplot(aes(x = OCC_MONTH, fill = factor(OCC_YEAR))) +
-  geom_bar(position = "dodge") +
+ggplot(data, aes(x = OCC_MONTH)) +
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
   theme_minimal() +
-  labs(title = "Traffic Collisions by Month (2014-2024)",
-       x = "Month", y = "Count", fill = "Year") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  labs(title = "Total Traffic Collisions by Month (2014-2024)",
+       x = "Month", y = "Total Count of Collisions") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+        plot.title = element_text(hjust = 0.5, size = 14))
 ```
-
-Collisions by Hour of the Day
 
 ```{r}
 #| label: fig-collisions-hour
-#| fig-cap: Collisions by Hour of the Day
+#| fig-cap: Total collisions by hour of the day from 2014 to 2024
 #| echo: false
 
-data %>% 
-  ggplot(aes(x = OCC_HOUR, fill = factor(OCC_YEAR))) +
-  geom_histogram(binwidth = 1, position = "dodge") +
+data$OCC_HOUR[is.na(data$OCC_HOUR)] <- 0
+data %>%
+  group_by(OCC_HOUR) %>%
+  summarise(Total_Collisions = sum(INJURY_COLLISIONS == "YES" | 
+                                     FTR_COLLISIONS == "YES" | 
+                                     PD_COLLISIONS == "YES", na.rm = TRUE)) %>%
+  ggplot(aes(x = OCC_HOUR, y = Total_Collisions)) +
+  geom_line(color = "steelblue", size = 1) +
   theme_minimal() +
-  labs(title = "Traffic Collisions by Hour of the Day (2014-2024)",
-       x = "Hour", y = "Count", fill = "Year")
+  scale_x_continuous(breaks = 0:23) +
+  labs(title = "Total Traffic Collisions by Hour of the Day (2014-2024)",
+       x = "Hour of the Day",
+       y = "Total Number of Collisions") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0.5),
+        panel.grid.major.x = element_line(size = 1.2),
+        panel.grid.major.y = element_line(size = 0.5))
+```
+
+```{r}
 
 ```
 
 ```{r}
-#| label: fig-monthly-collisions
-#| fig-cap: Monthly distribution of traffic collisions
+#| label: fig-collisions-type
+#| fig-cap: Proportion of each type of traffic collisions (2014–2024).
 #| echo: false
 
-data %>%
-  count(OCC_MONTH) %>%
-  ggplot(aes(x = OCC_MONTH, y = n)) +
-  geom_bar(stat = "identity", fill = "skyblue") +
-  theme_minimal() +
-  labs(title = "Monthly Distribution of Traffic Collisions", 
-       x = "Month", y = "Number of Collisions")
+collision_summary <- data %>%
+  summarise(Injury_Collisions = sum(INJURY_COLLISIONS == "YES"),
+            FTR_Collisions = sum(FTR_COLLISIONS == "YES"),
+            PD_Collisions = sum(PD_COLLISIONS == "YES"))
 
+collision_summary_long <- collision_summary %>%
+  pivot_longer(cols = everything(), names_to = "Collision_Type", 
+               values_to = "Count") %>%
+  mutate(Collision_Type = recode(Collision_Type, 
+                                 "Injury_Collisions" = "Injury Collisions",
+                                 "FTR_Collisions" = 
+                                   "Failed to Remain Collisions",
+                                 "PD_Collisions" = 
+                                   "Property Damage Collisions"))
 
+collision_summary_long <- collision_summary_long %>%
+  mutate(Percentage = round(Count / sum(Count) * 100, 2))
+
+ggplot(collision_summary_long, aes(x = "", y = Count, fill = Collision_Type)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  geom_text(aes(label = paste0(Percentage, "%")), 
+            position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = c("Injury Collisions" = "lightblue", 
+                               "Failed to Remain Collisions" = "skyblue", 
+                               "Property Damage Collisions" = "#4682B4")) +
+  theme_void() +
+  labs(title = "Proportion of Each Collision Type") +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5))
 ```
+
 
 ```{r}
 #| label: fig-fatalities-by-year
@@ -121,8 +162,65 @@ data %>%
   summarize(Total_Fatalities = sum(FATALITIES, na.rm = TRUE)) %>%
   ggplot(aes(x = OCC_YEAR, y = Total_Fatalities)) +
   geom_line(color = "darkred", size = 1) +
+  scale_x_continuous(breaks = seq(min(data$OCC_YEAR), 
+                                  max(data$OCC_YEAR), by = 1)) +  
   theme_minimal() +
-  labs(title = "Fatalities by Year", x = "Year", y = "Number of Fatalities")
+  labs(title = "Fatalities by Year", 
+       x = "Year", 
+       y = "Number of Fatalities") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14),
+    panel.grid.major.x = element_line(size = 0.8, color = "lightgrey")
+  )
+```
+
+
+
+```{r}
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+```{r}
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+```{r}
+
+
+
+
+
+
+
+
+
+
+
 
 ```
 \newpage
