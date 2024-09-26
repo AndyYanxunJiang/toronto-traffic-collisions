@@ -1,0 +1,35 @@
+You said:
+ok please help me write a R code for cleaning the data, ill tell you what to clean:
+
+please remove the following columns entirely: OCC_DATE, X_id, DIVISION, HOOD_158, LONG_WGS84, LAT_WGS84, geometry
+ChatGPT said:
+ChatGPT
+Here is an R code snippet that will remove the specified columns from your data:
+
+r
+Copy code
+#### Preamble ####
+# Purpose: Clean the traffic collision data by removing specified columns
+# Author: [Your Name]
+# Date: [Current Date]
+# Contact: [Your Email]
+# License: MIT
+# Pre-requisites: Load the raw data
+# Any other information needed? None
+
+#### Workspace setup ####
+library(tidyverse)
+
+#### Load raw data ####
+raw_data <- read_csv("data/raw_data/raw_collision_data.csv")
+
+#### Clean data by removing specified columns ####
+cleaned_data <- raw_data %>%
+  select(-OCC_DATE, -X_id, -DIVISION, -HOOD_158, -LONG_WGS84, -LAT_WGS84, -geometry)
+
+#### Save the cleaned data ####
+write_csv(cleaned_data, "data/cleaned_data/cleaned_collision_data.csv")
+Explanation:
+select(): The select() function from the dplyr package is used to remove the columns you mentioned.
+write_csv(): The cleaned data is saved in the "cleaned_data" folder, which you may need to create if it doesn't exist.
+This code will remove the specified columns (OCC_DATE, X_id, DIVISION, HOOD_158, LONG_WGS84, LAT_WGS84, and geometry) and save the resulting dataset to a new CSV file.

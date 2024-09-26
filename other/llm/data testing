@@ -1,0 +1,704 @@
+You said:
+this is my test for now, please add more test that are necessary, dont include too many test, the opendatatoronto is a valid data source, no need to check duplicates. 
+ChatGPT said:
+ChatGPT
+It looks like you have a good start for testing the data! Since the data comes from a trusted source, and you want to avoid over-checking, I'll suggest a few more essential tests to add:
+
+1. Test for missing values in critical columns
+Ensure no critical data (like OCC_YEAR, OCC_MONTH, etc.) is missing:
+
+r
+Copy code
+# Test for missing values in critical columns
+missing_values_check <- all(!is.na(data$OCC_YEAR)) & 
+                        all(!is.na(data$OCC_MONTH)) & 
+                        all(!is.na(data$OCC_DOW)) & 
+                        all(!is.na(data$OCC_HOUR))
+2. Check if the collision hour is within a valid range (0-23)
+This ensures that the collision hour makes sense:
+
+r
+Copy code
+# Test for valid collision hour (0 to 23)
+valid_hour_check <- all(data$OCC_HOUR >= 0 & data$OCC_HOUR <= 23, na.rm = TRUE)
+3. Check for valid values in YES/NO columns
+Ensure that all YES/NO columns contain only the allowed values:
+
+r
+Copy code
+# Test for valid YES/NO values in critical columns
+valid_yes_no_check <- all(data$AUTOMOBILE %in% c("YES", "NO")) & 
+                      all(data$MOTORCYCLE %in% c("YES", "NO")) & 
+                      all(data$PASSENGER %in% c("YES", "NO")) &
+                      all(data$BICYCLE %in% c("YES", "NO")) & 
+                      all(data$PEDESTRIAN %in% c("YES", "NO"))
+4. Check if FATALITIES are either NA or a positive integer
+Ensure that FATALITIES is either missing (NA) or a positive value (no negative fatalities):
+
+r
+Copy code
+# Test if fatalities are either NA or positive integers
+valid_fatalities_check <- all(is.na(data$FATALITIES) | data$FATALITIES >= 0)
+These tests should provide additional coverage without overloading your code with unnecessary checks. Would you like me to add them to your code?
+
+
+
+
+
+
+You said:
+the yes or no check is not a good check because when there are fatalities, the other sections will have NONE instead of yes or no
+ChatGPT said:
+ChatGPT
+Good point! Since the data can have values like "NONE" when there are fatalities or certain collision types, I'll adjust the check for the YES/NO columns accordingly. Instead of strictly testing for "YES" or "NO," we will allow for the presence of "NONE" where appropriate.
+
+Here is the modified test for checking those columns:
+
+3. Check for valid values in YES/NO columns (including "NONE")
+Ensure that the columns contain only "YES", "NO", or "NONE" where applicable:
+
+r
+Copy code
+# Test for valid YES/NO/NONE values in critical columns
+valid_yes_no_check <- all(data$AUTOMOBILE %in% c("YES", "NO", "NONE")) & 
+                      all(data$MOTORCYCLE %in% c("YES", "NO", "NONE")) & 
+                      all(data$PASSENGER %in% c("YES", "NO", "NONE")) &
+                      all(data$BICYCLE %in% c("YES", "NO", "NONE")) & 
+                      all(data$PEDESTRIAN %in% c("YES", "NO", "NONE"))
+This will ensure flexibility when handling cases like fatalities, where certain other columns may have "NONE." Does this solution seem appropriate for your data structure?
+
+
+
+
+
+
+You said:
+missing value check is false, what do i do
+ChatGPT said:
+ChatGPT
+If your missing value check returns FALSE, it means there are missing values (NA) in your dataset. To handle missing values, you have a few options depending on what makes the most sense for your analysis:
+
+Remove rows with missing values: This is the simplest option, but it may result in losing a lot of data.
+
+r
+Copy code
+# Remove rows with missing values
+cleaned_data <- data %>%
+  drop_na()
+Fill missing values with a default value: You can replace NA with some default value like 0 or "Unknown", depending on the column.
+
+r
+Copy code
+# Replace NAs in specific columns (e.g., FATALITIES) with 0 or other default values
+cleaned_data <- data %>%
+  mutate(
+    FATALITIES = replace_na(FATALITIES, 0),
+    NEIGHBOURHOOD_158 = replace_na(NEIGHBOURHOOD_158, "Unknown")
+  )
+Flag missing values: Instead of removing or filling missing values, you could create a new column to indicate if data was missing, which might be useful for analysis later.
+
+r
+Copy code
+# Create a new column indicating if data was missing
+cleaned_data <- data %>%
+  mutate(
+    is_missing = if_else(is.na(FATALITIES) | is.na(NEIGHBOURHOOD_158), TRUE, FALSE)
+  )
+Impute missing values: You can also use statistical techniques like mean/mode imputation or more advanced methods to estimate missing values, but that requires more domain knowledge.
+
+You can decide which approach makes sense for your dataset. Do you want to remove missing rows or fill them in?
+
+
+
+
+
+
+You said:
+can i see what are missing
+ChatGPT said:
+ChatGPT
+To see which values are missing in your dataset, you can use summary() or use filter() to identify the rows that contain missing values (NA). Here's how you can do it:
+
+Check for missing values using summary():
+
+r
+Copy code
+summary(data)
+This will give you an overview of each column and the number of missing values (if any) in each column.
+
+Identify rows with missing values using filter():
+
+You can filter out rows with missing values like this:
+
+r
+Copy code
+missing_rows <- data %>%
+  filter(if_any(everything(), is.na))
+
+# View the missing rows
+print(missing_rows)
+This will show you all rows in your dataset that have missing values in any column.
+
+Visualize missing data:
+
+If you'd like a graphical representation, you can use the naniar or visdat packages to plot the missing data:
+
+r
+Copy code
+# Install naniar package if not already installed
+install.packages("naniar")
+
+# Load the package
+library(naniar)
+
+# Plot missing values
+gg_miss_var(data)
+This will create a plot showing the distribution of missing values across your dataset.
+
+Would you like to explore your missing values now using any of these methods?
+
+
+
+
+
+
+You said:
+for msising value does it check for NA or blank 
+ChatGPT said:
+ChatGPT
+By default, R recognizes NA as a missing value, but it does not automatically treat blank spaces (empty strings) as missing values. Here's how to check for both NA and blank values:
+
+Check for NA values: As mentioned before, you can use the is.na() function to check for missing values in R.
+
+Check for blank values (empty strings): Blank values are treated as empty strings (""). You can use == "" to identify them.
+
+To check for both NA and blank values in your dataset, you can modify the filter like this:
+
+r
+Copy code
+# Check for NA or blank values in any column
+missing_or_blank_rows <- data %>%
+  filter(if_any(everything(), ~ is.na(.) | . == ""))
+
+# View the missing or blank rows
+print(missing_or_blank_rows)
+This will show you the rows that have either NA or blank values in any column.
+
+Let me know if you'd like to apply this check on your data.
+
+
+
+
+
+
+You said:
+for the ones that are NA, there are still collision DATA, so do u think its better to keep all the nas
+ChatGPT said:
+ChatGPT
+In your case, since you mentioned that the data still contains important information even when certain values are NA (e.g., FATALITIES might be NA while other collision details are present), it makes sense to keep the NA values.
+
+However, it's essential to consider the context of your analysis:
+
+If NA means "not applicable": For instance, if there are no fatalities, and that's why the value is NA, it might be appropriate to keep the NA because it reflects real-world situations.
+
+If NA means "missing data": If NA means the data was not recorded or is missing for some reason, you can still keep them, but you might want to address these missing values during the analysis by either imputing or considering them when interpreting the results.
+
+Approach:
+Keep NA values and acknowledge them in your analysis.
+Handle NA values appropriately based on the column. For example:
+FATALITIES: You can keep the NA if it means "no fatalities."
+INJURY_COLLISIONS, PD_COLLISIONS, etc.: If these fields contain NA but others have data, you should retain those rows but clearly document how you will handle or interpret these NA values in the final report.
+Would you like to continue with keeping all NA values, or would you prefer to handle specific columns differently?
+
+
+
+
+
+
+You said:
+if im still able to plot the data, i will keep the na
+ChatGPT said:
+ChatGPT
+Yes, you can still plot the data even if some columns contain NA values. Most plotting functions in R (such as ggplot2) automatically handle missing values (NA). Typically, they will either ignore the missing data points or provide warnings, but the graphs will still be generated.
+
+Here’s a brief overview of how plotting works with NA values in R:
+
+ggplot2: By default, it will exclude NA values from the plot. You can still plot the data with missing values in other columns.
+
+Example:
+
+r
+Copy code
+ggplot(data, aes(x = OCC_YEAR, y = FATALITIES)) +
+  geom_point() +
+  labs(title = "Year vs Fatalities")
+Handling NA for Specific Plots: If you want to explicitly deal with NA values (e.g., highlighting missing values), you can use additional functions like geom_blank() or na.rm = TRUE.
+
+To proceed:
+Keep the NA values if they don't prevent meaningful analysis.
+Plot as usual using ggplot2 or another plotting library.
+Would you like me to help you with writing specific plots based on your data, or do you have other questions?
+
+
+
+
+
+
+You said:
+please update this code so that the variables are correct form, for all collision should have yes and no, and fatalities should have NA if its 0, the vehicle types should be yes and no as well
+ChatGPT said:
+ChatGPT
+Here’s the updated code that reflects the requirements you mentioned:
+
+r
+Copy code
+library(tidyverse)
+
+#### Simulate data ####
+set.seed(304)
+
+# Define the start and end date
+start_date <- as.Date("2018-01-01")
+end_date <- as.Date("2023-12-31")
+
+# Set the number of random dates you want to generate
+number_of_dates <- 100
+
+# Simulate a dataset of 100 random traffic collision observations
+simulated_data <- tibble(
+  # Generate random dates
+  dates = as.Date(
+    runif(n = number_of_dates,
+          min = as.numeric(start_date), max = as.numeric(end_date)),
+    origin = "1970-01-01"
+  ),
+  
+  # Assign random police divisions
+  division = sample(1:14, number_of_dates, replace = TRUE),
+  
+  # Generate fatalities; replace 0 with NA
+  fatalities = ifelse(rpois(n = number_of_dates, lambda = 0.05) == 0, NA, rpois(n = number_of_dates, lambda = 0.05)),
+  
+  # Generate collisions, assign "YES" or "NO"
+  injury_collisions = ifelse(rpois(n = number_of_dates, lambda = 1) > 0, "YES", "NO"),
+  ftr_collisions = ifelse(rpois(n = number_of_dates, lambda = 0.5) > 0, "YES", "NO"),
+  pd_collisions = ifelse(rpois(n = number_of_dates, lambda = 2) > 0, "YES", "NO"),
+  
+  # Generate vehicle involvement, assign "YES" or "NO"
+  automobile = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1, "YES", "NO"),
+  pedestrian = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1, "YES", "NO"),
+  bicycle = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1, "YES", "NO")
+)
+
+#### Write_csv ####
+write_csv(simulated_data, file = "data/raw_data/simulated_collision_data.csv")
+Key Changes:
+Fatalities: If the value is 0, it's replaced with NA to represent no fatalities.
+Collisions: Each collision column (injury_collisions, ftr_collisions, and pd_collisions) now has "YES" or "NO" values based on whether the collision occurred.
+Vehicle Involvement: automobile, pedestrian, and bicycle columns are set to "YES" or "NO" to indicate the involvement in the collision.
+This should now better align with your expectations for the dataset.
+
+
+2/2
+
+You said:
+can you add a hour column from 0 to 23
+ChatGPT said:
+ChatGPT
+Here's the updated code with an added hour column that randomly assigns an hour between 0 and 23 for each observation:
+
+r
+Copy code
+library(tidyverse)
+
+#### Simulate data ####
+set.seed(304)
+
+# Define the start and end date
+start_date <- as.Date("2018-01-01")
+end_date <- as.Date("2023-12-31")
+
+# Set the number of random dates you want to generate
+number_of_dates <- 100
+
+# Simulate a dataset of 100 random traffic collision observations
+simulated_data <- tibble(
+  # Generate random dates
+  dates = as.Date(
+    runif(n = number_of_dates,
+          min = as.numeric(start_date), max = as.numeric(end_date)),
+    origin = "1970-01-01"
+  ),
+  
+  # Randomly assign hour between 0 and 23
+  hour = sample(0:23, number_of_dates, replace = TRUE),
+  
+  # Assign random police divisions
+  division = sample(1:14, number_of_dates, replace = TRUE),
+  
+  # Generate fatalities; replace 0 with NA
+  fatalities = ifelse(rpois(n = number_of_dates, lambda = 0.05) == 0, NA, rpois(n = number_of_dates, lambda = 0.05)),
+  
+  # Generate collisions, assign "YES" or "NO"
+  injury_collisions = ifelse(rpois(n = number_of_dates, lambda = 1) > 0, "YES", "NO"),
+  ftr_collisions = ifelse(rpois(n = number_of_dates, lambda = 0.5) > 0, "YES", "NO"),
+  pd_collisions = ifelse(rpois(n = number_of_dates, lambda = 2) > 0, "YES", "NO"),
+  
+  # Generate vehicle involvement, assign "YES" or "NO"
+  automobile = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1, "YES", "NO"),
+  pedestrian = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1, "YES", "NO"),
+  bicycle = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1, "YES", "NO")
+)
+
+#### Write_csv ####
+write_csv(simulated_data, file = "data/raw_data/simulated_collision_data.csv")
+Key Addition:
+The hour column randomly assigns a value from 0 to 23 for each observation, representing the hour of the day when the collision occurred.
+This should now include the required hour information in the simulated dataset.
+
+
+
+
+
+
+You said:
+
+this would still generate 0
+ChatGPT said:
+ChatGPT
+You're right! The code as it stands could still generate 0 values because it recalculates the rpois() function within the ifelse() statement. Here’s the fix:
+
+We first generate the fatalities, and then replace any 0 values with NA. This way, the fatalities column will have either NA or positive values.
+
+Here is the updated code for generating fatalities:
+
+r
+Copy code
+# Generate fatalities initially
+fatalities_raw = rpois(n = number_of_dates, lambda = 0.05)
+
+# Replace 0 with NA
+fatalities = ifelse(fatalities_raw == 0, NA, fatalities_raw)
+Then you can use fatalities as part of the simulated_data. This ensures that no 0 value will appear in the fatalities column, and those 0 values are replaced with NA instead.
+
+
+
+
+
+
+You said:
+
+ChatGPT said:
+ChatGPT
+The error is likely caused by a missing line break or semicolon. You need to ensure that each line is properly separated. Here's how the code should be written:
+
+r
+Copy code
+# Generate fatalities initially
+fatalities_raw <- rpois(n = number_of_dates, lambda = 0.05)
+
+# Replace 0 with NA
+fatalities <- ifelse(fatalities_raw == 0, NA, fatalities_raw)
+Make sure there's a line break between fatalities_raw and fatalities, and check that both lines are properly formatted. Let me know if it works!
+
+
+
+
+
+
+You said:
+
+ChatGPT said:
+ChatGPT
+It looks like there might be a syntax error due to improper punctuation. Ensure the code block is correctly formatted. Here's how it should look:
+
+r
+Copy code
+# Generate fatalities initially
+fatalities_raw <- rpois(n = number_of_dates, lambda = 0.05)
+
+# Replace 0 with NA
+fatalities <- ifelse(fatalities_raw == 0, NA, fatalities_raw)
+Check for any misplaced commas or missing line breaks. If the issue persists, try running one line at a time to identify the exact cause of the error.
+
+
+
+
+
+
+You said:
+use another way of modifying this code :
+
+  fatalities = ifelse(rpois(n = number_of_dates, lambda = 0.05) == 0, NA, 
+                      rpois(n = number_of_dates, lambda = 0.05)),
+
+to displayer either number >= 1 or NA
+ChatGPT said:
+ChatGPT
+To modify your code such that it assigns NA to all values of fatalities less than 1 and keeps values greater than or equal to 1, you can store the result of rpois in a variable and then use ifelse to check the condition. Here's how you can rewrite the code:
+
+r
+Copy code
+# Generate fatalities
+fatalities_raw <- rpois(n = number_of_dates, lambda = 0.05)
+
+# Replace values less than 1 with NA
+fatalities <- ifelse(fatalities_raw >= 1, fatalities_raw, NA)
+In this version, it ensures that only values of fatalities greater than or equal to 1 are kept, and all others are replaced by NA.
+
+
+
+
+
+
+You said:
+
+ChatGPT said:
+ChatGPT
+It seems there's an issue with how the comment or the code is written, causing an error. The error might be related to the comment formatting. Let's try updating the code block without comments for now to ensure it runs correctly:
+
+r
+Copy code
+# Generate fatalities
+fatalities_raw <- rpois(n = number_of_dates, lambda = 0.05)
+
+# Replace values less than 1 with NA
+fatalities <- ifelse(fatalities_raw >= 1, fatalities_raw, NA)
+Make sure there's no conflict with any preceding or trailing lines that could interfere with the code execution.
+
+You can try running this version and see if it resolves the issue. Let me know if the problem persists!
+
+
+
+
+
+
+You said:
+doesnt work
+ChatGPT said:
+ChatGPT
+If the above approach isn't working, let's simplify it further and ensure the correct order of operations. Here’s a cleaned version of the code:
+
+r
+Copy code
+# Generate fatalities and ensure that fatalities less than 1 are set to NA
+fatalities_raw <- rpois(n = number_of_dates, lambda = 0.05)
+
+# Apply the condition to replace values less than 1 with NA
+fatalities <- ifelse(fatalities_raw < 1, NA, fatalities_raw)
+This structure ensures that any value of fatalities_raw less than 1 is replaced with NA, while other values are retained as they are.
+
+Give this code a try and let me know if it works.
+
+
+
+
+
+
+You said:
+i dont wanna display fatality raw in the table
+ChatGPT said:
+ChatGPT
+To avoid displaying the intermediate fatalities_raw in your table, you can compute it directly inside the ifelse statement without creating a separate column. Here’s the updated version:
+
+r
+Copy code
+# Generate fatalities and replace values less than 1 with NA, without creating a separate fatalities_raw column
+fatalities <- ifelse(rpois(n = number_of_dates, lambda = 0.05) < 1, NA, rpois(n = number_of_dates, lambda = 0.05))
+This way, there is no fatalities_raw variable created, and you only have the fatalities column in your dataset.
+
+Let me know if that solves the issue!
+
+
+
+
+
+
+You said:
+now write some test right below the simulation code, so i can run the test while running the simulated data,
+ChatGPT said:
+ChatGPT
+Here’s how you can write some tests for the simulated data right below the simulation code. These tests check for the basic properties of the simulated data:
+
+r
+Copy code
+# Simulated data
+simulated_data <- tibble(
+  dates = as.Date(
+    runif(n = number_of_dates,
+          min = as.numeric(start_date), max = as.numeric(end_date)),
+    origin = "1970-01-01"
+  ),
+  hour = sample(0:23, number_of_dates, replace = TRUE),
+  division = sample(1:14, number_of_dates, replace = TRUE),
+  fatalities = ifelse(rpois(n = number_of_dates, lambda = 0.05) < 1, NA, rpois(n = number_of_dates, lambda = 0.05)),
+  injury_collisions = ifelse(rpois(n = number_of_dates, lambda = 1) > 0, "YES", "NO"),
+  ftr_collisions = ifelse(rpois(n = number_of_dates, lambda = 0.5) > 0, "YES", "NO"),
+  pd_collisions = ifelse(rpois(n = number_of_dates, lambda = 2) > 0, "YES", "NO"),
+  automobile = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1, "YES", "NO"),
+  pedestrian = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1, "YES", "NO"),
+  bicycle = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1, "YES", "NO")
+)
+
+# Write CSV
+write_csv(simulated_data, file = "data/raw_data/simulated_collision_data.csv")
+
+#### Test simulated data ####
+# Test 1: Check that there are no missing values in the "dates" and "hour" columns
+test_dates_hour <- all(!is.na(simulated_data$dates)) && all(!is.na(simulated_data$hour))
+cat("Test 1 - No missing values in 'dates' and 'hour':", test_dates_hour, "\n")
+
+# Test 2: Ensure that "fatalities" is either NA or greater than or equal to 1
+test_fatalities <- all(is.na(simulated_data$fatalities) | simulated_data$fatalities >= 1)
+cat("Test 2 - Fatalities are either NA or >= 1:", test_fatalities, "\n")
+
+# Test 3: Ensure "injury_collisions", "ftr_collisions", and "pd_collisions" only have "YES" or "NO" values
+test_collisions <- all(simulated_data$injury_collisions %in% c("YES", "NO")) &&
+  all(simulated_data$ftr_collisions %in% c("YES", "NO")) &&
+  all(simulated_data$pd_collisions %in% c("YES", "NO"))
+cat("Test 3 - Collisions columns have 'YES' or 'NO' values:", test_collisions, "\n")
+
+# Test 4: Ensure that "automobile", "pedestrian", and "bicycle" only have "YES" or "NO"
+test_vehicle_person <- all(simulated_data$automobile %in% c("YES", "NO")) &&
+  all(simulated_data$pedestrian %in% c("YES", "NO")) &&
+  all(simulated_data$bicycle %in% c("YES", "NO"))
+cat("Test 4 - Vehicle and person involvement columns have 'YES' or 'NO':", test_vehicle_person, "\n")
+
+# Test 5: Ensure there are exactly 100 rows in the dataset
+test_row_count <- nrow(simulated_data) == 100
+cat("Test 5 - Dataset has 100 rows:", test_row_count, "\n")
+Tests Explained:
+Test 1: Ensures that there are no missing values in the dates and hour columns.
+Test 2: Checks that the fatalities column contains either NA or values greater than or equal to 1.
+Test 3: Ensures that the collision columns (injury_collisions, ftr_collisions, pd_collisions) only contain "YES" or "NO".
+Test 4: Checks that the automobile, pedestrian, and bicycle columns only contain "YES" or "NO".
+Test 5: Confirms that the dataset has exactly 100 rows.
+You can run these tests immediately after the simulation to ensure that the data is properly simulated and formatted. Let me know if you need any additional tests or changes!
+
+
+
+
+
+
+You said:
+test hour is from 0 to 23
+ChatGPT said:
+ChatGPT
+To test that the hour column contains only values between 0 and 23, you can add the following test:
+
+r
+Copy code
+# Test 6: Ensure that 'hour' column contains only values between 0 and 23
+test_hour_range <- all(simulated_data$hour >= 0 & simulated_data$hour <= 23)
+cat("Test 6 - Hour column contains values between 0 and 23:", test_hour_range, "\n")
+This test checks that all values in the hour column are within the valid range of 0 to 23.
+
+
+
+
+
+
+You said:
+
+gimme some test for the actual cleaned data, dont need to test NA
+ChatGPT said:
+ChatGPT
+Here are some additional tests for your actual cleaned data. These do not test for NA values but will check if the values in specific columns conform to expected rules:
+
+r
+Copy code
+### Test if `INJURY_COLLISIONS` is either "YES" or "NO" ###
+valid_injury_collisions_check <- all(data$INJURY_COLLISIONS %in% c("YES", "NO"))
+cat("Test - Injury Collisions column contains only 'YES' or 'NO':", valid_injury_collisions_check, "\n")
+
+### Test if `FTR_COLLISIONS` is either "YES" or "NO" ###
+valid_ftr_collisions_check <- all(data$FTR_COLLISIONS %in% c("YES", "NO"))
+cat("Test - FTR Collisions column contains only 'YES' or 'NO':", valid_ftr_collisions_check, "\n")
+
+### Test if `PD_COLLISIONS` is either "YES" or "NO" ###
+valid_pd_collisions_check <- all(data$PD_COLLISIONS %in% c("YES", "NO"))
+cat("Test - PD Collisions column contains only 'YES' or 'NO':", valid_pd_collisions_check, "\n")
+
+### Test if vehicle involvement columns (AUTOMOBILE, PEDESTRIAN, BICYCLE) are either "YES" or "NO" ###
+valid_automobile_check <- all(data$AUTOMOBILE %in% c("YES", "NO"))
+cat("Test - Automobile column contains only 'YES' or 'NO':", valid_automobile_check, "\n")
+
+valid_pedestrian_check <- all(data$PEDESTRIAN %in% c("YES", "NO"))
+cat("Test - Pedestrian column contains only 'YES' or 'NO':", valid_pedestrian_check, "\n")
+
+valid_bicycle_check <- all(data$BICYCLE %in% c("YES", "NO"))
+cat("Test - Bicycle column contains only 'YES' or 'NO':", valid_bicycle_check, "\n")
+These tests will check the values in INJURY_COLLISIONS, FTR_COLLISIONS, PD_COLLISIONS, AUTOMOBILE, PEDESTRIAN, and BICYCLE to ensure they contain only "YES" or "NO".
+
+
+
+
+
+
+You said:
+just test all three collision has only YES, NO, and none, values
+ChatGPT said:
+ChatGPT
+Here is a test that checks if all three collision columns (INJURY_COLLISIONS, FTR_COLLISIONS, and PD_COLLISIONS) contain only "YES", "NO", or empty values (none):
+
+r
+Copy code
+### Test if `INJURY_COLLISIONS`, `FTR_COLLISIONS`, and `PD_COLLISIONS` contain only "YES", "NO", or none ###
+valid_collision_check <- all(
+  data$INJURY_COLLISIONS %in% c("YES", "NO", "") &
+  data$FTR_COLLISIONS %in% c("YES", "NO", "") &
+  data$PD_COLLISIONS %in% c("YES", "NO", "")
+)
+
+cat("Test - All collision columns contain only 'YES', 'NO', or none:", valid_collision_check, "\n")
+This test will check if the values in the INJURY_COLLISIONS, FTR_COLLISIONS, and PD_COLLISIONS columns are only "YES", "NO", or empty.
+
+
+
+
+
+
+You said:
+test month and year is valid
+ChatGPT said:
+ChatGPT
+Here’s a test to check that the OCC_MONTH and OCC_YEAR columns contain valid values. The OCC_MONTH should only have values from 1 to 12, and the OCC_YEAR should be within a valid range (you can adjust the year range as needed, e.g., 2014 to 2024).
+
+r
+Copy code
+### Test if `OCC_MONTH` contains valid values between 1 and 12 ###
+valid_month_check <- all(data$OCC_MONTH >= 1 & data$OCC_MONTH <= 12, na.rm = TRUE)
+
+### Test if `OCC_YEAR` contains valid values (e.g., between 2014 and 2024) ###
+valid_year_check <- all(data$OCC_YEAR >= 2014 & data$OCC_YEAR <= 2024, na.rm = TRUE)
+
+cat("Test - All months are valid (1-12):", valid_month_check, "\n")
+cat("Test - All years are valid (2014-2024):", valid_year_check, "\n")
+This code checks if the months are between 1 and 12 and the years are between 2014 and 2024. You can adjust the year range as needed.
+
+
+
+
+
+
+You said:
+month is in words
+ChatGPT said:
+ChatGPT
+If the month is represented in words, you can modify the test to check that the OCC_MONTH column contains only valid month names. Here’s the updated test:
+
+r
+Copy code
+### Define valid month names ###
+valid_month_names <- c("January", "February", "March", "April", "May", "June", 
+                       "July", "August", "September", "October", "November", "December")
+
+### Test if `OCC_MONTH` contains valid month names ###
+valid_month_check <- all(data$OCC_MONTH %in% valid_month_names, na.rm = TRUE)
+
+### Test if `OCC_YEAR` contains valid values (e.g., between 2014 and 2024) ###
+valid_year_check <- all(data$OCC_YEAR >= 2014 & data$OCC_YEAR <= 2024, na.rm = TRUE)
+
+cat("Test - All months are valid (January to December):", valid_month_check, "\n")
+cat("Test - All years are valid (2014-2024):", valid_year_check, "\n")
+This test now checks that OCC_MONTH contains only the full names of months (January through December).
