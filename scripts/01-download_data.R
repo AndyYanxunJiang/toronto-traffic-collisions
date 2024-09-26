@@ -4,7 +4,6 @@
 # Date: 22 September 2024
 # Contact: ayx.jiang@mail.utoronto.ca
 # Pre-requisites: None
-# Any other information needed? None
 
 #### Workspace setup ####
 library(opendatatoronto)
