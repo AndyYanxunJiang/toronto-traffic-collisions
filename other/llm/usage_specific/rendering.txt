@@ -1,0 +1,682 @@
+LLM: ChatGPT o1-preview
+Date: 26 September 2024
+
+this is my qmd file:
+
+---
+title: "Traffic Collisions in Toronto: Analysis of Key Variables"
+subtitle: "An Analysis of Traffic Collision Data from 2014-2024"
+author: 
+  - Andy Jiang
+thanks: "Code and data are available at: https://github.com/AndyYanxunJiang/toronto-traffic-collisions.git"
+date: 26 September 2024
+date-format: long
+abstract: "This paper analyzes traffic collisions in Toronto from 2014 to 2024, focusing on patterns across months, days of the week, times of day, and types of collisions, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. The data, sourced from Open Data Toronto, reveals a W-shaped trend in monthly collisions, with peaks in January and June. Collisions are most frequent between 3 PM and 5 PM, with Friday being the highest day for collisions and Sunday the lowest. Property damage accounts for about 71% of all incidents. The number of fatalities has generally declined over the years, though trends fluctuate annually. These findings highlight the need for ongoing road safety initiatives and targeted interventions during high-risk months and hours."
+format: pdf
+bibliography: references.bib
+---
+
+{r}
+#| include: false
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(knitr)
+library(opendatatoronto)
+library(dplyr)
+
+# Load the cleaned data
+data <- read_csv(here::here("data/analysis_data/cleaned_collision_data.csv"))
+
+# Convert relevant variables to factors
+data <- data %>%
+  mutate(OCC_MONTH = factor(OCC_MONTH, levels = month.name),
+         INJURY_COLLISIONS = as.factor(INJURY_COLLISIONS),
+         FTR_COLLISIONS = as.factor(FTR_COLLISIONS),
+         PD_COLLISIONS = as.factor(PD_COLLISIONS))
+
+
+# Introduction
+Traffic collisions remain a major public safety concern in urban areas, causing both human and economic costs. In cities like Toronto, understanding the temporal and categorical distribution of traffic collisions is crucial for reducing the incidence of accidents and improving road safety. Insights gained from such data allow policymakers and city planners to implement targeted interventions, especially during periods when collisions are most likely to occur.
+
+This paper examines traffic collisions in Toronto between 2014 and 2024. It aims to identify trends in monthly, daily, and hourly collision occurrences and assess the proportion of different collision types, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. Analyzing these trends can guide the development of more effective road safety policies and public awareness campaigns.
+
+The key questions addressed in this paper are: (1) How do traffic collisions vary by month, day of week, and time of day? (2) What are the dominant collision types, and what do they reveal about driving behavior and road safety? (3) What are the long-term trends in fatalities, and how might they evolve in the future?
+
+This paper is organized as follows: @sec-data describes the data and methodology. @sec-results presents the results, including visualizations of key trends. @sec-discussion discusses the findings in greater detail, and @sec-conclusion concludes with recommendations for future research and policy interventions.
+
+
+# Data {#sec-data}
+The data used in this paper came from the OpenData Toronto portal through the library opendatatoronto [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open source statistical programming language R [@citeR]. Libraries tidyverse [@CiteTD], knitr [@knitr] and dplyr [@citedplyr] were used for simulating, cleaning and testing. Graphics were made using ggplot2 [@citeGG].
+
+## Traffic Collision Analysis Data
+The cleaned dataset includes several key variables: Month, Day of the Week, Hour, Year, Fatalities, Injury Collisions, Failed to Remain (FTR) Collisions, and Property Damage (PD) Collisions. These variables allow for an analysis of collision frequency by time and type of incident.
+
+Certain variables such as Longitude, Latitude, Police Division, and Neighborhood information were removed as they were not necessary for this analysis. Additionally, vehicle type data was excluded since the majority of collisions involved automobiles, making this variable less useful for our purpose.
+
+@tbl-1 provides a random sample of the cleaned dataset, showing key variables such as the occurrence time and type of collision:
+
+{r}
+#| label: tbl-1
+#| tbl-cap: Sample of the cleaned collision data
+#| echo: false
+
+set.seed(127)
+data %>%
+  sample_n(10) %>%
+  kable(
+    col.names = c(
+      "Month", "Day of Week", "Year", "Hour", "Fatalities",
+      "Injury Collisions", "FTR Collisions", "PD Collisions"
+    ),
+    align = 'c'
+  )
+
+
+
+# Results {#sec-results}
+
+## Collisions by Day of the Week
+@fig-collisions-day shows the distribution of traffic collisions by the day of the week. The data reveals that the highest number of collisions occurs on Friday, while Sunday has the lowest number of incidents. There is a significant difference between Friday and Sunday, with approximately 60% more collisions occurring on Fridays. During the week, Monday has the lowest number of collisions among weekdays, though it is still higher than weekends. Tuesday, Wednesday, and Thursday exhibit similar collision counts, which are slightly lower than Friday but higher than Monday.
+
+The overall trend suggests that traffic volume and collision risk peak towards the end of the workweek, likely due to higher road activity on Fridays as people prepare for the weekend. The decline on weekends, particularly on Sundays, can be attributed to lower traffic volume and fewer activities requiring vehicle use.
+
+{r}
+#| label: fig-collisions-day
+#| fig-cap: Total traffic collisions by day of the week from 2014 to 2024
+#| echo: false
+
+data$OCC_DOW <- factor(data$OCC_DOW, 
+                       levels = c("Monday", "Tuesday", "Wednesday", "Thursday", 
+                                  "Friday", "Saturday", "Sunday"))
+ggplot(data, aes(x = OCC_DOW)) + 
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") + 
+  theme_minimal() + 
+  labs(title = "Traffic Collisions by Day of the Week", 
+       x = "Day of Week", y = "Total Count of Collisions") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+        plot.title = element_text(hjust = 0.5, size = 14))
+
+Here we analyze the data by looking at the frequency of traffic collisions based on various factors such as month, year, and neighborhood.
+
+Collisions by Month
+The following figure shows the distribution of collisions by month across all years.
+
+{r}
+#| label: fig-collisions-month
+#| fig-cap: Monthly traffic collision counts in Toronto from 2014 to 2024.
+#| echo: false
+ggplot(data, aes(x = OCC_MONTH)) +
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
+  theme_minimal() +
+  labs(title = "Traffic Collisions by Month",
+       x = "Month", y = "Total Count of Collisions") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+        plot.title = element_text(hjust = 0.5, size = 14))
+
+
+{r}
+#| label: fig-collisions-hour
+#| fig-cap: Total collisions by hour of the day from 2014 to 2024
+#| echo: false
+
+data$OCC_HOUR[is.na(data$OCC_HOUR)] <- 0
+data %>%
+  group_by(OCC_HOUR) %>%
+  summarise(Total_Collisions = sum(INJURY_COLLISIONS == "YES" | 
+                                     FTR_COLLISIONS == "YES" | 
+                                     PD_COLLISIONS == "YES", na.rm = TRUE)) %>%
+  ggplot(aes(x = OCC_HOUR, y = Total_Collisions)) +
+  geom_line(color = "steelblue", size = 1) +
+  theme_minimal() +
+  scale_x_continuous(breaks = 0:23) +
+  labs(title = "Traffic Collisions by Hour of the Day",
+       x = "Hour of the Day",
+       y = "Total Number of Collisions") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0.5),
+        panel.grid.major.x = element_line(size = 1.2),
+        panel.grid.major.y = element_line(size = 0.5))
+
+
+{r}
+
+
+{r}
+#| label: fig-collisions-type
+#| fig-cap: Proportion of each type of traffic collisions (2014–2024).
+#| echo: false
+
+collision_summary <- data %>%
+  summarise(Injury_Collisions = sum(INJURY_COLLISIONS == "YES"),
+            FTR_Collisions = sum(FTR_COLLISIONS == "YES"),
+            PD_Collisions = sum(PD_COLLISIONS == "YES"))
+
+collision_summary_long <- collision_summary %>%
+  pivot_longer(cols = everything(), names_to = "Collision_Type", 
+               values_to = "Count") %>%
+  mutate(Collision_Type = recode(Collision_Type, 
+                                 "Injury_Collisions" = "Injury Collisions",
+                                 "FTR_Collisions" = 
+                                   "Failed to Remain Collisions",
+                                 "PD_Collisions" = 
+                                   "Property Damage Collisions"))
+
+collision_summary_long <- collision_summary_long %>%
+  mutate(Percentage = round(Count / sum(Count) * 100, 2))
+
+ggplot(collision_summary_long, aes(x = "", y = Count, fill = Collision_Type)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  geom_text(aes(label = paste0(Percentage, "%")), 
+            position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = c("Injury Collisions" = "lightblue", 
+                               "Failed to Remain Collisions" = "skyblue", 
+                               "Property Damage Collisions" = "#4682B4")) +
+  theme_void() +
+  labs(title = "Proportion of Each Collision Type") +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+
+
+{r}
+#| label: fig-fatalities
+#| fig-cap: Yearly trend in fatalities from collisions (2014-2024)
+#| echo: false
+
+data %>%
+  group_by(OCC_YEAR) %>%
+  summarize(Total_Fatalities = sum(FATALITIES, na.rm = TRUE)) %>%
+  ggplot(aes(x = OCC_YEAR, y = Total_Fatalities)) +
+  geom_line(color = "darkred", size = 1) +
+  scale_x_continuous(breaks = seq(min(data$OCC_YEAR), 
+                                  max(data$OCC_YEAR), by = 1)) +  
+  theme_minimal() +
+  labs(title = "Fatalities by Year", 
+       x = "Year", 
+       y = "Number of Fatalities") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14),
+    panel.grid.major.x = element_line(size = 0.8, color = "lightgrey")
+  )
+
+
+
+
+\newpage
+# Discussion {#sec-discussion}
+Overall, the analysis of traffic collisions from 2014 to 2024 reveals several key trends. Traffic collisions are more frequent during certain months of the year, with higher occurrences during the winter months, potentially due to hazardous road conditions. The distribution of collisions by hour of the day indicates that rush hours experience the highest number of collisions. The relationship between fatalities and injury collisions suggests that even non-fatal collisions result in significant injuries, emphasizing the need for road safety interventions.
+
+# Conclusion {#sec-conclusion}
+This analysis highlights the importance of studying traffic collision data to inform policy decisions and road safety measures. Further analysis could include a more detailed breakdown by specific neighborhoods or examining the impact of weather conditions on collision frequency.
+
+
+\newpage
+
+
+# References
+
+
+
+
+and for the collision day of week and collision month graph: 
+
+Warning: The size argument of element_line() is deprecated as of ggplot2 3.4.0.
+i Please use the linewidth argument instead.
+ChatGPT
+
+Thought for 21 seconds
+
+The warning message you're encountering is due to a change in the ggplot2 package starting from version 3.4.0. Specifically, the size argument in the element_line() function within the theme() settings has been deprecated and replaced with linewidth.
+
+To resolve this warning, you'll need to replace all instances of size with linewidth in your element_line() functions. Here's how you can update your code for the collision day of week and collision month graphs:
+
+1. Collision Day of the Week Graph (fig-collisions-day):
+Original Code Snippet:
+
+r
+Copy code
+theme(
+  axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+  plot.title = element_text(hjust = 0.5, size = 14)
+)
+Action Needed:
+
+In this specific graph, you're not using element_line(), so no changes are needed here. The warning might be coming from another plot.
+
+2. Collision Month Graph (fig-collisions-month):
+Original Code Snippet:
+
+r
+Copy code
+theme(
+  axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+  plot.title = element_text(hjust = 0.5, size = 14)
+)
+Action Needed:
+
+Similar to the previous graph, there's no element_line() with size here. If you're not getting a warning for this plot, you can leave it as is.
+
+3. Collision Hour Graph (fig-collisions-hour):
+Original Code Snippet:
+
+r
+Copy code
+theme(
+  axis.text.x = element_text(angle = 45, hjust = 1),
+  plot.title = element_text(hjust = 0.5),
+  panel.grid.major.x = element_line(size = 1.2),
+  panel.grid.major.y = element_line(size = 0.5)
+)
+Updated Code Snippet:
+
+r
+Copy code
+theme(
+  axis.text.x = element_text(angle = 45, hjust = 1),
+  plot.title = element_text(hjust = 0.5),
+  panel.grid.major.x = element_line(linewidth = 1.2),
+  panel.grid.major.y = element_line(linewidth = 0.5)
+)
+Explanation:
+
+Replace size with linewidth in element_line() for both panel.grid.major.x and panel.grid.major.y.
+4. Fatalities Graph (fig-fatalities):
+Original Code Snippet:
+
+r
+Copy code
+theme(
+  axis.text.x = element_text(angle = 45, hjust = 1),
+  plot.title = element_text(hjust = 0.5, size = 14),
+  panel.grid.major.x = element_line(size = 0.8, color = "lightgrey")
+)
+Updated Code Snippet:
+
+r
+Copy code
+theme(
+  axis.text.x = element_text(angle = 45, hjust = 1),
+  plot.title = element_text(hjust = 0.5, size = 14),
+  panel.grid.major.x = element_line(linewidth = 0.8, color = "lightgrey")
+)
+Explanation:
+
+Replace size with linewidth in element_line() for panel.grid.major.x.
+Why This Change is Necessary:
+Deprecation Notice: Starting from ggplot2 version 3.4.0, the size argument in element_line() is deprecated.
+Replacement Argument: The new argument linewidth serves the same purpose and should be used moving forward.
+Avoiding Warnings: Updating your code will eliminate the warning messages and ensure compatibility with future versions of ggplot2.
+Additional Notes:
+No Change Needed for element_text(): The size argument in element_text() is still valid and does not need to be changed.
+Consistent Styling: Make sure to update all instances where element_line(size = ...) is used within your code to maintain consistent styling across your plots.
+After making these changes, your graphs should render without any warnings related to element_line(). If you continue to see warnings, double-check your code for any other instances of element_line(size = ...) that may need updating.
+
+Let me know if you have any other questions or need further assistance!
+
+
+
+
+
+
+You said:
+it still has one more message, after updating my code it removed one, but there were two messages now left with one
+ChatGPT
+
+Thought for 36 seconds
+
+I understand that you're still encountering one warning message after updating your code. Let's work together to locate and fix the remaining instance of the deprecated size argument in element_line(). The warning indicates that somewhere in your code, element_line() is still being called with size instead of linewidth.
+
+Steps to Identify and Resolve the Remaining Warning:
+1. Search Your Entire Code for element_line(size = ...)
+Action: Use the search function in your text editor or IDE to look for any remaining instances of element_line(size = ...).
+Tip: Also search for variations like element_line(size=, without spaces.
+2. Check Custom Themes or Global Theme Settings
+Action: If you've set any custom themes using theme_set() or modified default themes, these may contain element_line(size = ...).
+Example:
+r
+Copy code
+theme_set(
+  theme_minimal() +
+    theme(
+      panel.grid.major = element_line(size = 0.5),
+      panel.grid.minor = element_line(size = 0.25)
+    )
+)
+Solution: Replace size with linewidth in these theme settings.
+3. Review All Plotting Code
+Action: Go through each of your plotting code chunks to find any overlooked instances.
+Areas to Focus On:
+Axis lines and ticks (axis.line, axis.ticks)
+Grid lines (panel.grid.major, panel.grid.minor)
+Legend elements
+Example:
+r
+Copy code
+theme(
+  axis.ticks = element_line(size = 0.5)
+)
+Update To:
+r
+Copy code
+theme(
+  axis.ticks = element_line(linewidth = 0.5)
+)
+4. Check for Implicit Theme Elements
+Action: Some theme elements might inherit properties or be set indirectly.
+Example:
+If you're using a theme that modifies axis.line or other elements, check if they specify size.
+5. Examine the Empty Code Chunk
+Observation: You have an empty code chunk in your document:
+{r}
+Copy code
+Action: Ensure that this chunk doesn't contain any hidden or commented-out code that might be causing the warning.
+6. Check for Deprecated Arguments in Other Functions
+Action: Although the warning mentions element_line(), double-check other theme elements for deprecated arguments.
+Example:
+r
+Copy code
+theme(
+  panel.border = element_rect(size = 1)
+)
+Note: For element_rect(), size is still the correct argument, so no change is needed.
+7. Verify Package Versions
+Action: Ensure all your packages are up to date, especially ggplot2.
+Commands:
+r
+Copy code
+update.packages("ggplot2")
+or
+r
+Copy code
+install.packages("ggplot2")
+8. Possible Hidden element_line(size = ...) in Themes
+Action: Some themes may have internal settings using size.
+Example:
+Custom Theme:
+r
+Copy code
+custom_theme <- theme_minimal() +
+  theme(
+    axis.line = element_line(size = 0.8)
+  )
+Solution: Update to:
+r
+Copy code
+custom_theme <- theme_minimal() +
+  theme(
+    axis.line = element_line(linewidth = 0.8)
+  )
+Application: Apply custom_theme to your plots.
+9. Review the Complete Code of Affected Plots
+Request: Please double-check the full code for the collision day of week and collision month graphs, even if you believe they don't contain element_line(size = ...).
+For example, in your collision month graph:
+
+r
+Copy code
+ggplot(data, aes(x = OCC_MONTH)) +
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
+  theme_minimal() +
+  labs(title = "Traffic Collisions by Month",
+       x = "Month", y = "Total Count of Collisions") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+Question: Are there any additional theme settings or code that might not be shown here?
+10. Check for Third-Party Themes or Styles
+Action: If you're using any third-party themes or style files, they might contain deprecated size arguments.
+Example: Themes like theme_economist(), theme_wsj(), etc.
+11. Example of a Hidden Issue
+Suppose you have a theme modification that looks like this:
+
+r
+Copy code
+theme(
+  panel.grid = element_line(size = 0.5)
+)
+Solution: Change to:
+r
+Copy code
+theme(
+  panel.grid = element_line(linewidth = 0.5)
+)
+12. Reproduce the Warning
+Action: Try running the specific code chunks individually to see which one generates the warning.
+Method:
+Run each plot code chunk separately.
+Observe the console for warnings.
+13. Consider the Default size in geom_line()
+Clarification: The size argument in geom_line() is still valid and should not cause the warning.
+Example:
+r
+Copy code
+geom_line(color = "steelblue", size = 1)
+No Change Needed Here.
+14. Check for Knitr Options
+Action: Sometimes, code chunk options in R Markdown or Quarto can influence the output.
+Example:
+{r,
+Copy code
+Ensure: That warnings are not being suppressed, and you can see all messages.
+15. Update the Plot Code with Potential Hidden Settings
+Suggestion: Explicitly set linewidth in geom_line() even if not required.
+Example:
+r
+Copy code
+geom_line(color = "steelblue", linewidth = 1)
+Final Steps:
+1. Comprehensive Search: Use your editor's "Find in Files" feature to search all files in your project for element_line(size.
+2. Update All Instances: Replace any found instances with element_line(linewidth = ...).
+3. Re-run the Document: Knit or render your document again to see if the warning persists.
+4. Provide Feedback: Let me know if the warning still appears after these steps.
+Additional Assistance:
+If you're still encountering the warning after trying all the above steps, please consider sharing the complete code for the specific plots or any custom theme settings. This will help identify the issue more precisely.
+
+Example:
+
+Custom Theme Settings:
+r
+Copy code
+theme_custom <- theme_minimal() +
+  theme(
+    axis.line = element_line(size = 0.5)
+  )
+Solution:
+r
+Copy code
+theme_custom <- theme_minimal() +
+  theme(
+    axis.line = element_line(linewidth = 0.5)
+  )
+Summary:
+The warning indicates a remaining use of element_line(size = ...).
+Carefully check all instances in your code, including custom themes and global settings.
+Replace size with linewidth in element_line() everywhere.
+Update packages and restart your R session if necessary.
+Please let me know if you need further assistance or if the issue persists after these steps. I'm here to help you resolve this warning so you can proceed with your analysis smoothly!
+
+
+
+
+
+
+You said:
+#| label: fig-collisions-day
+> #| fig-cap: Total traffic collisions by day of the week from 2014 to 2024
+> #| echo: false
+> 
+> data$OCC_DOW <- factor(data$OCC_DOW, 
++                        levels = c("Monday", "Tuesday", "Wednesday", "Thursday", 
++                                   "Friday", "Saturday", "Sunday"))
+> ggplot(data, aes(x = OCC_DOW)) + 
++   geom_bar(position = "dodge", stat = "count", fill = "lightblue") + 
++   theme_minimal() + 
++   labs(title = "Traffic Collisions by Day of the Week", 
++        x = "Day of Week", y = "Total Count of Collisions") + 
++   theme(axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
++         plot.title = element_text(hjust = 0.5, size = 14))
+> 
+> #| label: fig-collisions-month
+> #| fig-cap: Monthly traffic collision counts in Toronto from 2014 to 2024.
+> #| echo: false
+> 
+> ggplot(data, aes(x = OCC_MONTH)) +
++   geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
++   theme_minimal() +
++   labs(title = "Traffic Collisions by Month",
++        x = "Month", y = "Total Count of Collisions") +
++   theme(axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
++         plot.title = element_text(hjust = 0.5, size = 14))
+> #| label: fig-collisions-hour
+> #| fig-cap: Total collisions by hour of the day from 2014 to 2024
+> #| echo: false
+> 
+> data$OCC_HOUR[is.na(data$OCC_HOUR)] <- 0
+> data %>%
++   group_by(OCC_HOUR) %>%
++   summarise(Total_Collisions = sum(INJURY_COLLISIONS == "YES" | 
++                                      FTR_COLLISIONS == "YES" | 
++                                      PD_COLLISIONS == "YES", na.rm = TRUE)) %>%
++   ggplot(aes(x = OCC_HOUR, y = Total_Collisions)) +
++   geom_line(color = "steelblue", size = 1) +
++   theme_minimal() +
++   scale_x_continuous(breaks = 0:23) +
++   labs(title = "Traffic Collisions by Hour of the Day",
++        x = "Hour of the Day",
++        y = "Total Number of Collisions") +
++   theme(axis.text.x = element_text(angle = 45, hjust = 1),
++         plot.title = element_text(hjust = 0.5),
++         panel.grid.major.x = element_line(linewidth = 1.2),
++         panel.grid.major.y = element_line(linewidth = 0.5))
+Warning: Using size aesthetic for lines was deprecated in ggplot2 3.4.0.
+Please use linewidth instead.
+> #| label: fig-collisions-type
+> #| fig-cap: Proportion of each type of traffic collisions (2014–2024).
+> #| echo: false
+> 
+> collision_summary <- data %>%
++   summarise(Injury_Collisions = sum(INJURY_COLLISIONS == "YES"),
++             FTR_Collisions = sum(FTR_COLLISIONS == "YES"),
++             PD_Collisions = sum(PD_COLLISIONS == "YES"))
+> 
+> collision_summary_long <- collision_summary %>%
++   pivot_longer(cols = everything(), names_to = "Collision_Type", 
++                values_to = "Count") %>%
++   mutate(Collision_Type = recode(Collision_Type, 
++                                  "Injury_Collisions" = "Injury Collisions",
++                                  "FTR_Collisions" = 
++                                    "Failed to Remain Collisions",
++                                  "PD_Collisions" = 
++                                    "Property Damage Collisions"))
+> 
+> collision_summary_long <- collision_summary_long %>%
++   mutate(Percentage = round(Count / sum(Count) * 100, 2))
+> 
+> ggplot(collision_summary_long, aes(x = "", y = Count, fill = Collision_Type)) +
++   geom_bar(stat = "identity", width = 1) +
++   coord_polar("y", start = 0) +
++   geom_text(aes(label = paste0(Percentage, "%")), 
++             position = position_stack(vjust = 0.5)) +
++   scale_fill_manual(values = c("Injury Collisions" = "lightblue", 
++                                "Failed to Remain Collisions" = "skyblue", 
++                                "Property Damage Collisions" = "#4682B4")) +
++   theme_void() +
++   labs(title = "Proportion of Each Collision Type") +
++   theme(legend.title = element_blank(),
++         plot.title = element_text(hjust = 0.5))
+> #| label: fig-fatalities
+> #| fig-cap: Yearly trend in fatalities from collisions (2014-2024)
+> #| echo: false
+> 
+> data %>%
++   group_by(OCC_YEAR) %>%
++   summarize(Total_Fatalities = sum(FATALITIES, na.rm = TRUE)) %>%
++   ggplot(aes(x = OCC_YEAR, y = Total_Fatalities)) +
++   geom_line(color = "darkred", size = 1) +
++   scale_x_continuous(breaks = seq(min(data$OCC_YEAR), 
++                                   max(data$OCC_YEAR), by = 1)) +  
++   theme_minimal() +
++   labs(title = "Fatalities by Year", 
++        x = "Year", 
++        y = "Number of Fatalities") +
++   theme(
++     axis.text.x = element_text(angle = 45, hjust = 1),
++     plot.title = element_text(hjust = 0.5, size = 14),
++     panel.grid.major.x = element_line(linewidth = 0.8, color = "lightgrey")
+ChatGPT
+
+Thought for 19 seconds
+
+I see that after updating your code, you're still receiving a warning message:
+
+perl
+Copy code
+Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+Please use `linewidth` instead.
+This warning indicates that in ggplot2 version 3.4.0 and above, the size aesthetic for lines (used in geom_line()) has been deprecated and replaced with linewidth. You need to update your geom_line() calls by replacing size with linewidth.
+
+Here's How to Fix It:
+1. Collision Hour Graph (fig-collisions-hour):
+Original Code:
+
+r
+Copy code
+geom_line(color = "steelblue", size = 1) +
+Updated Code:
+
+r
+Copy code
+geom_line(color = "steelblue", linewidth = 1) +
+Explanation:
+
+Replace size with linewidth in the geom_line() function.
+2. Fatalities Graph (fig-fatalities):
+Original Code:
+
+r
+Copy code
+geom_line(color = "darkred", size = 1) +
+Updated Code:
+
+r
+Copy code
+geom_line(color = "darkred", linewidth = 1) +
+Why This Change is Necessary:
+Deprecation Notice: In ggplot2 version 3.4.0, the size aesthetic for lines has been deprecated in favor of linewidth.
+Affected Functions: This affects geoms that draw lines, such as geom_line(), geom_path(), and geom_segment().
+Avoiding Warnings: Updating your code will eliminate the warning message and ensure compatibility with future versions of ggplot2.
+Summary of Changes:
+In fig-collisions-hour:
+
+Before:
+
+r
+Copy code
+geom_line(color = "steelblue", size = 1) +
+After:
+
+r
+Copy code
+geom_line(color = "steelblue", linewidth = 1) +
+In fig-fatalities:
+
+Before:
+
+r
+Copy code
+geom_line(color = "darkred", size = 1) +
+After:
+
+r
+Copy code
+geom_line(color = "darkred", linewidth = 1) +
+Additional Notes:
+No Change Needed for Other Geoms: The size aesthetic is still valid for point geometries like geom_point(), so no changes are needed there.
+Consistent Styling: Updating size to linewidth in your line geoms will maintain the visual appearance of your plots.
+Final Step:
+Re-run Your Code: After making these changes, re-run your document to check if the warning message has been resolved.
+Please let me know if this resolves the warning or if you need any further assistance!
