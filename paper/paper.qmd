@@ -4,11 +4,10 @@ subtitle: "An Analysis of Traffic Collision Data from 2014-2024"
 author: 
   - Andy Jiang
 thanks: "Code and data are available at: https://github.com/AndyYanxunJiang/toronto-traffic-collisions.git"
-date: 24 September 2024
+date: 26 September 2024
 date-format: long
-abstract: "This paper analyzes traffic collision data in Toronto from 2014 to 2024. It explores trends in collisions by month, year, and neighborhood, examining variables such as fatalities, injuries, and property damage. The analysis is done using @citeR, with visualizations produced through ggplot2."
+abstract: "This paper analyzes traffic collisions in Toronto from 2014 to 2024, focusing on patterns across months, days of the week, times of day, and types of collisions, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. The data, sourced from Open Data Toronto, reveals a light W-shaped trend in monthly collisions, with peaks in January and June. Collisions are most frequent between 3 PM and 5 PM, with Friday being the highest day for collisions and Sunday the lowest. Property damage accounts for about 71% of all incidents. The number of fatalities has generally declined over the years, though trends fluctuate annually. These findings highlight the need for ongoing road safety initiatives and targeted interventions during high-risk periods to improve long-term traffic safety."
 format: pdf
-number-sections: true
 bibliography: references.bib
 ---
 
@@ -19,72 +18,114 @@ bibliography: references.bib
 
 library(tidyverse)
 library(knitr)
-library(kableExtra)
 library(opendatatoronto)
-library(here)
-library(tidyr)
 library(dplyr)
-library(janitor)
-library(VennDiagram)
-
 
 # Load the cleaned data
 data <- read_csv(here::here("data/analysis_data/cleaned_collision_data.csv"))
 
 # Convert relevant variables to factors
 data <- data %>%
-  mutate(OCC_MONTH = factor(OCC_MONTH, levels = month.name),
-         INJURY_COLLISIONS = as.factor(INJURY_COLLISIONS),
-         FTR_COLLISIONS = as.factor(FTR_COLLISIONS),
-         PD_COLLISIONS = as.factor(PD_COLLISIONS))
+  mutate(
+    OCC_MONTH = factor(OCC_MONTH, levels = month.name),
+    INJURY_COLLISIONS = as.factor(INJURY_COLLISIONS),
+    FTR_COLLISIONS = as.factor(FTR_COLLISIONS),
+    PD_COLLISIONS = as.factor(PD_COLLISIONS)
+  )
 ```
 
 # Introduction
-This paper analyzes traffic collision data in Toronto from 2014 to 2024. We explore trends in monthly, yearly, and neighborhood-level collisions, with a focus on variables such as fatalities, injuries, property damage, and modes of transport involved. The data is sourced from Open Data Toronto and contains detailed information about each collision.
+Traffic collisions remain a major public safety concern in urban areas, causing both human and economic costs. In cities like Toronto, understanding the temporal and categorical distribution of traffic collisions is crucial for reducing the incidence of accidents and improving road safety. Insights gained from such data allow policymakers and city planners to implement targeted interventions, especially during periods when collisions are most likely to occur.
 
-The remainder of this paper is structured as follows. Section @sec-data provides details of the dataset used in this analysis. Section @sec-results presents the results of the analysis, followed by a discussion in Section @sec-discussion. Finally, Section @sec-conclusion summarizes the key findings of the study.
+This paper examines traffic collisions in Toronto between 2014 and 2024. It aims to identify trends in monthly, daily, and hourly collision occurrences and assess the proportion of different collision types, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. Analyzing these trends can guide the development of more effective road safety policies and public awareness campaigns.
+
+The key questions addressed in this paper are: (1) How do traffic collisions vary by month, day of week, and time of day? (2) What are the dominant collision types, and what do they reveal about driving behavior and road safety? (3) What are the long-term trends in fatalities, and how might they evolve in the future?
+
+This paper is organized as follows: @sec-data describes the data and methodology. @sec-results presents the results, including visualizations of key trends. Finally, @sec-discussion provides a detailed discussion of the findings and their implications for road safety and policy interventions.
 
 
 # Data {#sec-data}
-The dataset used in this analysis was obtained from Open Data Toronto. It includes traffic collision data collected between 2014 and 2024. The variables include the date and time of the collision, whether there were fatalities, injuries, or property damage, and the type of vehicle(s) involved. @tbl-1 provides a sample of the cleaned dataset.
+The data used in this paper came from the OpenData Toronto portal through the library `opendatatoronto` [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open source statistical programming language R [@citeR]. Libraries `tidyverse` [@CiteTD], `knitr` [@knitr] and `dplyr` [@citedplyr] were used for simulating, cleaning and testing. Graphics were made using `ggplot2` [@citeGG].
+
+## Traffic Collision Analysis Data
+The cleaned dataset includes several key variables: Month, Day of the Week, Hour, Year, Fatalities, Injury Collisions, Failed to Remain (FTR) Collisions, and Property Damage (PD) Collisions. These variables allow for an analysis of collision frequency by time and type of incident.
+
+Certain variables such as Longitude, Latitude, Police Division, and Neighborhood information were removed as they were not necessary for this analysis. Additionally, vehicle type data was excluded since the majority of collisions involved automobiles, making this variable less useful for our purpose.
+
+@tbl-1 provides a random sample of the cleaned dataset, showing key variables such as the occurrence time and type of collision:
 
 ```{r}
 #| label: tbl-1
 #| tbl-cap: Sample of the cleaned collision data
 #| echo: false
 
-# Display the cleaned collision data
-head(data, 10) %>%
-  
-  # Use kable to format the table with custom column names
+set.seed(127)
+data %>%
+  sample_n(10) %>%
   kable(
     col.names = c(
       "Month", "Day of Week", "Year", "Hour", "Fatalities",
       "Injury Collisions", "FTR Collisions", "PD Collisions"
     ),
-    align = 'c'
+    align = "c"
   )
 ```
 
 
 # Results {#sec-results}
-Here we analyze the data by looking at the frequency of traffic collisions based on various factors such as month, year, and neighborhood.
 
-Collisions by Month
-The following figure shows the distribution of collisions by month across all years.
+## Collisions by Day of the Week
+@fig-collisions-day shows the distribution of traffic collisions by the day of the week. The data reveals that the highest number of collisions occurs on Friday, while Sunday has the lowest number of incidents. There is a significant difference between Friday and Sunday, with approximately 60% more collisions occurring on Fridays. During the week, Monday has the lowest number of collisions among weekdays, though it is still higher than weekends. Tuesday, Wednesday, and Thursday exhibit similar collision counts, which are slightly lower than Friday but higher than Monday.
+
+The overall trend suggests that traffic volume and collision risk peak towards the end of the workweek, likely due to higher road activity on Fridays as people prepare for the weekend. The decline on weekends, particularly on Sundays, can be attributed to lower traffic volume and fewer activities requiring vehicle use.
+
+```{r}
+#| label: fig-collisions-day
+#| fig-cap: Total traffic collisions by day of the week from 2014 to 2024
+#| echo: false
+
+data$OCC_DOW <- factor(data$OCC_DOW,
+  levels = c(
+    "Monday", "Tuesday", "Wednesday", "Thursday",
+    "Friday", "Saturday", "Sunday"
+  )
+)
+ggplot(data, aes(x = OCC_DOW)) +
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
+  theme_minimal() +
+  labs(
+    title = "Traffic Collisions by Day of the Week",
+    x = "Day of Week", y = "Total Count of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+```
+
+## Collisions by Month
+@fig-collisions-month shows the distribution of traffic collisions by month from 2014 to 2024. The data reveals a light W-shaped pattern, with collisions peaking at the start, middle, and end of the year. The highest counts occur in January and June, while the end of the year also sees an increase, though not as high as the other two peaks. This pattern could be linked to weather conditions, particularly during winter months like January when icy roads increase the likelihood of accidents. June's peak may coincide with higher traffic volumes during the summer as people travel for vacations and events. The increase toward the end of the year could reflect the impact of holiday travel and busy shopping periods.
 
 ```{r}
 #| label: fig-collisions-month
 #| fig-cap: Monthly traffic collision counts in Toronto from 2014 to 2024.
 #| echo: false
+
 ggplot(data, aes(x = OCC_MONTH)) +
   geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
   theme_minimal() +
-  labs(title = "Total Traffic Collisions by Month (2014-2024)",
-       x = "Month", y = "Total Count of Collisions") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
-        plot.title = element_text(hjust = 0.5, size = 14))
+  labs(
+    title = "Traffic Collisions by Month",
+    x = "Month", y = "Total Count of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
 ```
+
+## Collisions by Hour of the Day
+@fig-collisions-hour shows the distribution of traffic collisions by hour of the day. The data indicates that collisions start to increase around 6 AM, coinciding with the start of the workday and upcoming rush hour traffic. The number of collisions continues to rise until it reaches a peak between 3 PM and 5 PM, during the afternoon rush hour, when roads are crowded with people returning home from work. After 6 PM, the number of collisions starts to decline as traffic decreases. The lowest collision rates are observed between midnight and 5 AM, when most people are asleep, and there are fewer vehicles on the road. This pattern is expected, as traffic volume and collision risk are closely correlated.
 
 ```{r}
 #| label: fig-collisions-hour
@@ -98,21 +139,24 @@ data %>%
                                      FTR_COLLISIONS == "YES" | 
                                      PD_COLLISIONS == "YES", na.rm = TRUE)) %>%
   ggplot(aes(x = OCC_HOUR, y = Total_Collisions)) +
-  geom_line(color = "steelblue", size = 1) +
+  geom_line(color = "steelblue", linewidth = 1) +
   theme_minimal() +
   scale_x_continuous(breaks = 0:23) +
-  labs(title = "Total Traffic Collisions by Hour of the Day (2014-2024)",
-       x = "Hour of the Day",
-       y = "Total Number of Collisions") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        plot.title = element_text(hjust = 0.5),
-        panel.grid.major.x = element_line(size = 1.2),
-        panel.grid.major.y = element_line(size = 0.5))
+  labs(
+    title = "Traffic Collisions by Hour of the Day",
+    x = "Hour of the Day",
+    y = "Total Number of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.major.x = element_line(linewidth = 1.2),
+    panel.grid.major.y = element_line(linewidth = 0.5)
+  )
 ```
 
-```{r}
-
-```
+## Collision Types
+@fig-collisions-type shows the proportion of each collision type. Property damage collisions dominate, accounting for approximately 71% of all recorded incidents. This suggests that most collisions involve vehicle-to-vehicle impacts or damage to roadside objects, without causing significant injuries. Failed to remain and injury collisions are relatively similar in proportion, each making up a smaller share of total collisions. Although these types can overlap (e.g., a failed-to-remain collision may also involve injury), the overlap is small enough to justify using a pie chart for this analysis. A more detailed analysis, using a Venn diagram, could account for these overlaps, but the overall trend remains clear: property damage is the most frequent outcome of traffic collisions.
 
 ```{r}
 #| label: fig-collisions-type
@@ -120,19 +164,24 @@ data %>%
 #| echo: false
 
 collision_summary <- data %>%
-  summarise(Injury_Collisions = sum(INJURY_COLLISIONS == "YES"),
-            FTR_Collisions = sum(FTR_COLLISIONS == "YES"),
-            PD_Collisions = sum(PD_COLLISIONS == "YES"))
+  summarise(
+    Injury_Collisions = sum(INJURY_COLLISIONS == "YES"),
+    FTR_Collisions = sum(FTR_COLLISIONS == "YES"),
+    PD_Collisions = sum(PD_COLLISIONS == "YES")
+  )
 
 collision_summary_long <- collision_summary %>%
-  pivot_longer(cols = everything(), names_to = "Collision_Type", 
-               values_to = "Count") %>%
-  mutate(Collision_Type = recode(Collision_Type, 
-                                 "Injury_Collisions" = "Injury Collisions",
-                                 "FTR_Collisions" = 
-                                   "Failed to Remain Collisions",
-                                 "PD_Collisions" = 
-                                   "Property Damage Collisions"))
+  pivot_longer(
+    cols = everything(), names_to = "Collision_Type",
+    values_to = "Count"
+  ) %>%
+  mutate(Collision_Type = recode(Collision_Type,
+    "Injury_Collisions" = "Injury Collisions",
+    "FTR_Collisions" =
+      "Failed to Remain Collisions",
+    "PD_Collisions" =
+      "Property Damage Collisions"
+  ))
 
 collision_summary_long <- collision_summary_long %>%
   mutate(Percentage = round(Count / sum(Count) * 100, 2))
@@ -140,95 +189,86 @@ collision_summary_long <- collision_summary_long %>%
 ggplot(collision_summary_long, aes(x = "", y = Count, fill = Collision_Type)) +
   geom_bar(stat = "identity", width = 1) +
   coord_polar("y", start = 0) +
-  geom_text(aes(label = paste0(Percentage, "%")), 
-            position = position_stack(vjust = 0.5)) +
-  scale_fill_manual(values = c("Injury Collisions" = "lightblue", 
-                               "Failed to Remain Collisions" = "skyblue", 
-                               "Property Damage Collisions" = "#4682B4")) +
+  geom_text(aes(label = paste0(Percentage, "%")),
+    position = position_stack(vjust = 0.5)
+  ) +
+  scale_fill_manual(values = c(
+    "Injury Collisions" = "lightblue",
+    "Failed to Remain Collisions" = "skyblue",
+    "Property Damage Collisions" = "#4682B4"
+  )) +
   theme_void() +
   labs(title = "Proportion of Each Collision Type") +
-  theme(legend.title = element_blank(),
-        plot.title = element_text(hjust = 0.5))
+  theme(
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  )
 ```
 
+## Fatalities
+@fig-fatalities illustrates the trend in fatalities over time. The data shows fluctuations year by year, with the number of fatalities rising and falling between 2014 and 2024. However, the overall trend points to a gradual decline in fatalities, with the count for 2024 reaching its lowest point at 20 (as of late July). It is important to note that this number may rise as more data becomes available for the remainder of the year. The decline in fatalities may be attributed to improvements in road safety regulations, better vehicle technology, and more effective public safety policies. Nonetheless, the year-to-year fluctuations suggest that external factors, such as weather and traffic volume, continue to play a significant role in accident severity.
 
 ```{r}
-#| label: fig-fatalities-by-year
-#| fig-cap: Yearly trend in fatalities from collisions
+#| label: fig-fatalities
+#| fig-cap: Yearly trend in fatalities from collisions (2014-2024)
 #| echo: false
 
 data %>%
   group_by(OCC_YEAR) %>%
   summarize(Total_Fatalities = sum(FATALITIES, na.rm = TRUE)) %>%
   ggplot(aes(x = OCC_YEAR, y = Total_Fatalities)) +
-  geom_line(color = "darkred", size = 1) +
-  scale_x_continuous(breaks = seq(min(data$OCC_YEAR), 
-                                  max(data$OCC_YEAR), by = 1)) +  
+  geom_line(color = "darkred", linewidth = 1) +
+  scale_x_continuous(breaks = seq(min(data$OCC_YEAR),
+    max(data$OCC_YEAR),
+    by = 1
+  )) +
   theme_minimal() +
-  labs(title = "Fatalities by Year", 
-       x = "Year", 
-       y = "Number of Fatalities") +
+  labs(
+    title = "Fatalities by Year",
+    x = "Year",
+    y = "Number of Fatalities"
+  ) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     plot.title = element_text(hjust = 0.5, size = 14),
-    panel.grid.major.x = element_line(size = 0.8, color = "lightgrey")
+    panel.grid.major.x = element_line(linewidth = 0.8, color = "lightgrey")
   )
 ```
 
 
 
-```{r}
-
-
-
-
-
-
-
-
-
-
-
-
-```
-
-
-```{r}
-
-
-
-
-
-
-
-
-
-
-
-
-```
-
-
-```{r}
-
-
-
-
-
-
-
-
-
-
-
-
-```
 \newpage
 # Discussion {#sec-discussion}
-Overall, the analysis of traffic collisions from 2014 to 2024 reveals several key trends. Traffic collisions are more frequent during certain months of the year, with higher occurrences during the winter months, potentially due to hazardous road conditions. The distribution of collisions by hour of the day indicates that rush hours experience the highest number of collisions. The relationship between fatalities and injury collisions suggests that even non-fatal collisions result in significant injuries, emphasizing the need for road safety interventions.
+The analysis of traffic collisions in Toronto between 2014 and 2024 reveals several patterns, each offering insights into how urban life, driving habits, and external factors like weather affect road safety.
 
-# Conclusion {#sec-conclusion}
-This analysis highlights the importance of studying traffic collision data to inform policy decisions and road safety measures. Further analysis could include a more detailed breakdown by specific neighborhoods or examining the impact of weather conditions on collision frequency.
+## Day of the Week Analysis
+The distribution of traffic collisions across the days of the week provides a revealing look at how human behavior and traffic flow influence accident frequency. Friday, as the day with the highest collision rate, indicates a heightened risk toward the end of the workweek. This trend may be driven by multiple factors, including fatigue from the workweek, a possible rush to get home, and increased social activities as people transition into their weekend plans. Interestingly, Friday shows 60% more collisions than Sunday, a day characterized by reduced travel and leisure activities. The marked difference between these two days points to how daily schedules and behavioral changes significantly impact road safety.
+
+Sunday, with the lowest number of collisions, likely benefits from reduced road congestion, as many people tend to stay home or partake in local activities that don’t require long-distance travel. This also suggests that weekends, despite the occasional recreational travel, generally have safer road conditions. It is worth considering whether policies or public safety campaigns targeted at reducing Friday incidents could be beneficial, perhaps through encouraging more cautious driving during this high-risk period.
+
+## Monthly Patterns
+The light W-shaped pattern in monthly traffic collisions offers valuable insight into the seasonal and cultural influences that drive collision frequency. January, the peak month for collisions, aligns with Canada’s harsh winter conditions. The combination of icy roads, snowstorms, and reduced visibility presents a high risk for accidents. However, an additional contributing factor may be the increased road activity related to New Year’s celebrations, which often involve parties, alcohol consumption, and late-night travel. This brings attention to the need for targeted safety measures during major holidays, such as stricter policing of impaired driving.
+
+The second peak in June likely reflects the start of summer activities. Increased road travel for vacations, social events, and outdoor activities contributes to higher traffic volumes and, consequently, more collisions. The third rise at the end of the year, though not as pronounced, coincides with the busy holiday season when shopping, travel, and family visits dominate. Again, this suggests that city officials could benefit from strengthening public safety campaigns during these periods, with a particular focus on distracted driving, impaired driving, and road congestion management. As of last week, Toronto is addressing congestion with a plan that includes new fines, levies on construction projects, and automated enforcement, aimed at reducing traffic disruptions and improving road safety. These measures are crucial as the city's growing population and post-pandemic travel patterns have worsened congestion [@CongestionPlan].
+
+## Hourly Patterns
+Examining the distribution of collisions by hour of the day reveals a pronounced correlation between daily routines and road accidents. Collisions begin increasing sharply around 6 AM, as people wake up and head to work or school, contributing to morning rush hour congestion. This increase continues until 3 PM - 5 PM, when the evening rush hour dominates. The afternoon peak is particularly notable, reflecting the combined impact of people leaving work, running errands, and picking up children from school. The fact that this period consistently shows the highest number of collisions highlights the need for targeted road safety measures during rush hours, such as speed regulation, better traffic management systems, and public awareness campaigns focusing on attentive driving during high-congestion periods.
+
+After 6 PM, collisions decline drastically as road congestion eases and people settle into their evening routines. The midnight to 5 AM period records the fewest collisions, as expected, with minimal road activity during these hours. However, late-night incidents may still be influenced by riskier behaviors, such as driving under the influence of alcohol, making this period an important focus for law enforcement and awareness campaigns aimed at reducing late-night impaired driving.
+
+## Collision Types Implications
+The distribution of collision types adds depth to our understanding of how most accidents unfold. The dominance of property damage collisions—representing approximately 71% of all incidents—suggests that the majority of accidents are minor, involving either physical contact between vehicles or collisions with roadside infrastructure like signs or barriers. These accidents often result in fender benders or minor vehicle damage but don’t necessarily lead to injuries or fatalities.
+
+A smaller proportion of collisions involve injuries, where physical harm occurs to drivers or passengers. While these are slightly fewer in number compared to failed-to-remain collisions, they still represent a more severe subset of accidents that require further attention. Failed-to-remain collisions, where drivers flee the scene of the accident, are more common than injury collisions but have the least overlap with both injury and property damage incidents. This minimal overlap suggests that hit-and-run cases are a distinct category of accidents, often disconnected from the other two types, which might require different preventive strategies—such as better surveillance systems or harsher penalties for offenders.
+
+Given that fatalities are extreme outliers in terms of frequency, they warrant a separate analysis. While they occur in far fewer instances than injuries or property damage collisions, their severe consequences make them critically important for road safety planning. Fatal collisions often involve higher speeds, riskier driving behavior (such as driving under the influence), or particularly dangerous road conditions (e.g., icy roads). This reinforces the need for focused interventions targeting these outlier events.
+
+## Fatalities Insights
+The trend of declining fatalities from 2014 to 2024 is a positive outcome, reflecting the impact of improved road safety regulations, advances in vehicle technology (such as airbags, anti-lock brakes, and collision avoidance systems), and better public awareness of safe driving practices. However, it is important to acknowledge that this downward trend is influenced by a range of external factors, many of which are difficult to control. In a country like Canada, where winter conditions create significant challenges for drivers, weather-related accidents may remain an unfortunate reality. While safety campaigns can prepare drivers for icy or snowy conditions, accidents linked to poor weather may never be completely eliminated.
+
+Fatalities caused by controllable factors, such as distracted driving (e.g., using phones) or drunk driving, can be addressed more directly through stricter enforcement and educational campaigns. Policies that target these behaviors—such as harsher penalties for phone use while driving and regular sobriety checkpoints—can help reduce fatalities related to human error. While the 10-year period analyzed in this study reveals a favorable downward trend, it is a relatively short time frame for long-term safety assessments. Extrapolating from this data suggests that fatalities may continue to decline, but more robust, longitudinal data is needed to draw firmer conclusions.
+
+As of early September, the number of road fatalities in Toronto stands at 30 [@FatalitiesRecent], which still reflects a decline, but with a few months remaining in the year, it is unclear whether the final tally will continue this downward trend. This uncertainty underscores the importance of remaining vigilant and adaptable when it comes to road safety measures and policies, as the near future trend remains uncertain. Predicting future trends based on present data offers a useful tool for policymakers, but continual monitoring and adaptation of road safety strategies are essential to maintaining and enhancing this progress.
 
 
 \newpage
