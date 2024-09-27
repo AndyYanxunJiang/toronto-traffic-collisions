@@ -21,7 +21,7 @@ The repo is structured as:
 -   `references.bib`: The bibliography file containing all references.
 
 -   `other/llm`: Contains the chat history with ChatGPT.
--   `other/sketches`: Contains the sketches of all the visualizations.
+-   `other/sketches`: Contains the sketches of potential analysis dataset and graphs.
 
 
 
