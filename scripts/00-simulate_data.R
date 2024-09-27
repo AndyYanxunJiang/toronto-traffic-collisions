@@ -7,6 +7,8 @@
 
 #### Workspace setup ####
 library(tidyverse)
+library(tibble)
+library(readr)
 
 #### Simulate data ####
 set.seed(304)
