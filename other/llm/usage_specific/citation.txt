@@ -1,0 +1,2095 @@
+---
+title: "Traffic Collisions in Toronto: Analysis of Key Variables"
+subtitle: "An Analysis of Traffic Collision Data from 2014-2024"
+author: 
+  - Andy Jiang
+thanks: "Code and data are available at: https://github.com/AndyYanxunJiang/toronto-traffic-collisions"
+date: today
+date-format: long
+abstract: "This paper analyzes traffic collisions in Toronto from 2014 to 2024, focusing on patterns across months, days of the week, times of day, and types of collisions, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. The data, sourced from Open Data Toronto, reveals a light W-shaped trend in monthly collisions, with peaks in January and June. Collisions are most frequent between 3 PM and 5 PM, with Friday being the highest day for collisions and Sunday the lowest. Property damage accounts for about 71% of all incidents. The number of fatalities has generally declined over the years, though trends fluctuate annually. These findings highlight the need for ongoing road safety initiatives and targeted interventions during high-risk periods to improve long-term traffic safety."
+format: pdf
+bibliography: references.bib
+---
+
+{r}
+#| include: false
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(knitr)
+library(opendatatoronto)
+library(dplyr)
+
+# Load the cleaned data
+data <- read_csv(here::here("data/analysis_data/cleaned_collision_data.csv"))
+
+# Convert relevant variables to factors
+data <- data %>%
+  mutate(
+    OCC_MONTH = factor(OCC_MONTH, levels = month.name),
+    INJURY_COLLISIONS = as.factor(INJURY_COLLISIONS),
+    FTR_COLLISIONS = as.factor(FTR_COLLISIONS),
+    PD_COLLISIONS = as.factor(PD_COLLISIONS)
+  )
+
+
+# Introduction
+Traffic collisions remain a major public safety concern in urban areas, causing both human and economic costs. In cities like Toronto, understanding the temporal and categorical distribution of traffic collisions is crucial for reducing the incidence of accidents and improving road safety. Insights gained from such data allow policymakers and city planners to implement targeted interventions, especially during periods when collisions are most likely to occur.
+
+This paper examines traffic collisions in Toronto between 2014 and 2024, a decade that has seen substantial changes in road usage, vehicle technology, and city infrastructure. Despite the growing availability of traffic data, there is still a need for detailed analysis of collision patterns over time and by type. This paper seeks to fill this gap by identifying trends in monthly, daily, and hourly collision occurrences, and assessing the proportion of different collision types, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. These insights can inform more effective road safety policies, particularly during high-risk periods.
+
+The key questions addressed in this paper are: (1) How do traffic collisions vary by month, day of week, and time of day? (2) What are the dominant collision types, and what do they reveal about driving behavior and road safety? (3) What are the long-term trends in fatalities, and how might they evolve in the future?
+
+This paper is organized as follows: @sec-data describes the data and methodology. @sec-results presents the results, including visualizations of key trends. Finally, @sec-discussion provides a detailed discussion of the findings and their implications for road safety and policy interventions.
+
+
+# Data {#sec-data}
+The data used in this paper came from the Open Data Toronto portal through the library opendatatoronto [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open source statistical programming language R [@citeR]. Libraries tidyverse [@CiteTD], knitr [@knitr] and dplyr [@citedplyr] were used for simulating, cleaning and testing. Graphics were made using ggplot2 [@citeGG].
+
+## Measurement
+The traffic collision data is collected by the Toronto Police and made publicly available through Open Data Toronto, where it is graded as Gold with a 100% data quality score. Each entry reflects a documented collision incident, capturing details like time, location, collision type, and vehicle type. However, the dataset does not include information on weather conditions or road quality, which could provide additional context for analyzing collision trends.
+
+## Traffic Collision Analysis Data
+The cleaned dataset includes several key variables: Month, Day of the Week, Hour, Year, Fatalities, Injury Collisions, Failed to Remain (FTR) Collisions, and Property Damage (PD) Collisions. These variables allow for an analysis of collision frequency by time and type of incident.
+
+Certain variables such as Longitude, Latitude, Police Division, and Neighborhood information were removed as they were not necessary for this analysis. Additionally, vehicle type data was excluded since the majority of collisions involved automobiles, making this variable less useful for our purpose.
+
+@tbl-1 provides a random sample of the cleaned dataset, displaying all relevant variables used for analysis:
+
+{r}
+#| label: tbl-1
+#| tbl-cap: Random sample of the cleaned collision data
+#| echo: false
+
+set.seed(127)
+data %>%
+  sample_n(10) %>%
+  kable(
+    col.names = c(
+      "Month", "Day of Week", "Year", "Hour", "Fatalities",
+      "Injury Collisions", "FTR Collisions", "PD Collisions"
+    ),
+    align = "c"
+  )
+
+
+
+# Results {#sec-results}
+
+## Collisions by Day of the Week
+@fig-collisions-day shows the distribution of traffic collisions by the day of the week. The data reveals that the highest number of collisions occurs on Friday, while Sunday has the lowest number of incidents. There is a significant difference between Friday and Sunday, with approximately 60% more collisions occurring on Fridays. During the week, Monday has the lowest number of collisions among weekdays, though it is still higher than weekends. Tuesday, Wednesday, and Thursday exhibit similar collision counts, which are slightly lower than Friday but higher than Monday.
+
+The overall trend suggests that traffic volume and collision risk peak towards the end of the workweek, likely due to higher road activity on Fridays as people prepare for the weekend. The decline on weekends, particularly on Sundays, can be attributed to lower traffic volume and fewer activities requiring vehicle use.
+
+{r}
+#| label: fig-collisions-day
+#| fig-cap: Total traffic collisions by day of the week from 2014 to 2024
+#| echo: false
+
+data$OCC_DOW <- factor(data$OCC_DOW,
+  levels = c(
+    "Monday", "Tuesday", "Wednesday", "Thursday",
+    "Friday", "Saturday", "Sunday"
+  )
+)
+ggplot(data, aes(x = OCC_DOW)) +
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
+  theme_minimal() +
+  labs(
+    title = "Traffic Collisions by Day of the Week",
+    x = "Day of Week", y = "Total Count of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+## Collisions by Month
+@fig-collisions-month shows the distribution of traffic collisions by month from 2014 to 2024. The data reveals a light W-shaped pattern, with collisions peaking at the start, middle, and end of the year. The highest counts occur in January and June, while the end of the year also sees an increase, though not as high as the other two peaks. This pattern could be linked to weather conditions, particularly during winter months like January when icy roads increase the likelihood of accidents. June's peak may coincide with higher traffic volumes during the summer as people travel for vacations and events. The increase toward the end of the year could reflect the impact of holiday travel and busy shopping periods.
+
+{r}
+#| label: fig-collisions-month
+#| fig-cap: Monthly traffic collision counts in Toronto from 2014 to 2024.
+#| echo: false
+
+ggplot(data, aes(x = OCC_MONTH)) +
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
+  theme_minimal() +
+  labs(
+    title = "Traffic Collisions by Month",
+    x = "Month", y = "Total Count of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+## Collisions by Hour of the Day
+@fig-collisions-hour shows the distribution of traffic collisions by hour of the day. The data indicates that collisions start to increase around 6 AM, coinciding with the start of the workday and upcoming rush hour traffic. The number of collisions continues to rise until it reaches a peak between 3 PM and 5 PM, during the afternoon rush hour, when roads are crowded with people returning home from work. After 6 PM, the number of collisions starts to decline as traffic decreases. The lowest collision rates are observed between midnight and 5 AM, when most people are asleep, and there are fewer vehicles on the road. This pattern is expected, as traffic volume and collision risk are closely correlated.
+
+{r}
+#| label: fig-collisions-hour
+#| fig-cap: Total collisions by hour of the day from 2014 to 2024
+#| echo: false
+
+data$OCC_HOUR[is.na(data$OCC_HOUR)] <- 0
+data %>%
+  group_by(OCC_HOUR) %>%
+  summarise(Total_Collisions = sum(INJURY_COLLISIONS == "YES" | 
+                                     FTR_COLLISIONS == "YES" | 
+                                     PD_COLLISIONS == "YES", na.rm = TRUE)) %>%
+  ggplot(aes(x = OCC_HOUR, y = Total_Collisions)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  theme_minimal() +
+  scale_x_continuous(breaks = 0:23) +
+  labs(
+    title = "Traffic Collisions by Hour of the Day",
+    x = "Hour of the Day",
+    y = "Total Number of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.major.x = element_line(linewidth = 1.2),
+    panel.grid.major.y = element_line(linewidth = 0.5)
+  )
+
+
+## Collision Types
+@fig-collisions-type shows the proportion of each collision type. Property damage collisions dominate, accounting for approximately 71% of all recorded incidents. This suggests that most collisions involve vehicle-to-vehicle impacts or damage to roadside objects, without causing significant injuries. Failed to remain and injury collisions are relatively similar in proportion, each making up a smaller share of total collisions. Although these types can overlap (e.g., a failed to remain collision may also involve injury), the overlap is small enough to justify using a pie chart for this analysis. A more detailed analysis, using a Venn diagram, could account for these overlaps, but the overall trend remains clear: property damage is the most frequent outcome of traffic collisions.
+
+{r}
+#| label: fig-collisions-type
+#| fig-cap: Proportion of each type of traffic collisions (2014–2024).
+#| echo: false
+
+collision_summary <- data %>%
+  summarise(
+    Injury_Collisions = sum(INJURY_COLLISIONS == "YES"),
+    FTR_Collisions = sum(FTR_COLLISIONS == "YES"),
+    PD_Collisions = sum(PD_COLLISIONS == "YES")
+  )
+
+collision_summary_long <- collision_summary %>%
+  pivot_longer(
+    cols = everything(), names_to = "Collision_Type",
+    values_to = "Count"
+  ) %>%
+  mutate(Collision_Type = recode(Collision_Type,
+    "Injury_Collisions" = "Injury Collisions",
+    "FTR_Collisions" =
+      "Failed to Remain Collisions",
+    "PD_Collisions" =
+      "Property Damage Collisions"
+  ))
+
+collision_summary_long <- collision_summary_long %>%
+  mutate(Percentage = round(Count / sum(Count) * 100, 2))
+
+ggplot(collision_summary_long, aes(x = "", y = Count, fill = Collision_Type)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  geom_text(aes(label = paste0(Percentage, "%")),
+    position = position_stack(vjust = 0.5)
+  ) +
+  scale_fill_manual(values = c(
+    "Injury Collisions" = "lightblue",
+    "Failed to Remain Collisions" = "skyblue",
+    "Property Damage Collisions" = "#4682B4"
+  )) +
+  theme_void() +
+  labs(title = "Proportion of Each Collision Type") +
+  theme(
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+## Fatalities
+@fig-fatalities illustrates the trend in fatalities over time. The data shows fluctuations year by year, with the number of fatalities rising and falling between 2014 and 2024. However, the overall trend points to a gradual decline in fatalities, with the count for 2024 reaching its lowest point at 20 (as of late July). It is important to note that this number may rise as more data becomes available for the remainder of the year. The decline in fatalities may be attributed to improvements in road safety regulations, better vehicle technology, and more effective public safety policies. Nonetheless, the year-to-year fluctuations suggest that external factors, such as weather and traffic volume, continue to play a significant role in accident severity.
+
+{r}
+#| label: fig-fatalities
+#| fig-cap: Yearly trend in fatalities from collisions (2014-2024)
+#| echo: false
+
+data %>%
+  group_by(OCC_YEAR) %>%
+  summarize(Total_Fatalities = sum(FATALITIES, na.rm = TRUE)) %>%
+  ggplot(aes(x = OCC_YEAR, y = Total_Fatalities)) +
+  geom_line(color = "darkred", linewidth = 1) +
+  scale_x_continuous(breaks = seq(min(data$OCC_YEAR),
+    max(data$OCC_YEAR),
+    by = 1
+  )) +
+  theme_minimal() +
+  labs(
+    title = "Fatalities by Year",
+    x = "Year",
+    y = "Number of Fatalities"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14),
+    panel.grid.major.x = element_line(linewidth = 0.8, color = "lightgrey")
+  )
+
+
+
+
+\newpage
+# Discussion {#sec-discussion}
+The analysis of traffic collisions in Toronto between 2014 and 2024 reveals several patterns, each offering insights into how urban life, driving habits, and external factors like weather affect road safety.
+
+## Day of the Week Analysis
+The distribution of traffic collisions across the days of the week provides a revealing look at how human behavior and traffic flow influence accident frequency. Friday, as the day with the highest collision rate, indicates a heightened risk toward the end of the workweek. This trend may be driven by multiple factors, including fatigue from the workweek, a possible rush to get home, and increased social activities as people transition into their weekend plans. Interestingly, Friday shows 60% more collisions than Sunday, a day characterized by reduced travel and leisure activities. The marked difference between these two days points to how daily schedules and behavioral changes significantly impact road safety.
+
+Sunday, with the lowest number of collisions, likely benefits from reduced road congestion, as many people tend to stay home or partake in local activities that don’t require long-distance travel. This also suggests that weekends, despite the occasional recreational travel, generally have safer road conditions. It is worth considering whether policies or public safety campaigns targeted at reducing Friday incidents could be beneficial, perhaps through encouraging more cautious driving during this high-risk period.
+
+## Monthly Patterns
+The light W-shaped pattern in monthly traffic collisions offers valuable insight into the seasonal and cultural influences that drive collision frequency. January, the peak month for collisions, aligns with Canada’s harsh winter conditions. The combination of icy roads, snowstorms, and reduced visibility presents a high risk for accidents. However, an additional contributing factor may be the increased road activity related to New Year’s celebrations, which often involve parties, alcohol consumption, and late-night travel. This brings attention to the need for targeted safety measures during major holidays, such as stricter policing of impaired driving.
+
+The second peak in June likely reflects the start of summer activities. Increased road travel for vacations, social events, and outdoor activities contributes to higher traffic volumes and, consequently, more collisions. The third rise at the end of the year, though not as pronounced, coincides with the busy holiday season when shopping, travel, and family visits dominate. Again, this suggests that city officials could benefit from strengthening public safety campaigns during these periods, with a particular focus on distracted driving, impaired driving, and road congestion management. As of last week, Toronto is addressing congestion with a plan that includes new fines, levies on construction projects, and automated enforcement, aimed at reducing traffic disruptions and improving road safety. These measures are crucial as the city's growing population and post-pandemic travel patterns have worsened congestion [@CongestionPlan].
+
+## Hourly Patterns
+Examining the distribution of collisions by hour of the day reveals a pronounced correlation between daily routines and road accidents. Collisions begin increasing sharply around 6 AM, as people wake up and head to work or school, contributing to morning rush hour congestion. This increase continues until 3 PM - 5 PM, when the evening rush hour dominates. The afternoon peak is particularly notable, reflecting the combined impact of people leaving work, running errands, and picking up children from school. The fact that this period consistently shows the highest number of collisions highlights the need for targeted road safety measures during rush hours, such as speed regulation, better traffic management systems, and public awareness campaigns focusing on attentive driving during high-congestion periods.
+
+After 6 PM, collisions decline drastically as road congestion eases and people settle into their evening routines. The midnight to 5 AM period records the fewest collisions, as expected, with minimal road activity during these hours. However, late-night incidents may still be influenced by riskier behaviors, such as driving under the influence of alcohol, making this period an important focus for law enforcement and awareness campaigns aimed at reducing late-night impaired driving.
+
+## Collision Types Implications
+The distribution of collision types adds depth to our understanding of how most accidents unfold. The dominance of property damage collisions—representing approximately 71% of all incidents—suggests that the majority of accidents are minor, involving either physical contact between vehicles or collisions with roadside infrastructure like signs or barriers. These accidents often result in fender benders or minor vehicle damage but don’t necessarily lead to injuries or fatalities.
+
+A smaller proportion of collisions involve injuries, where physical harm occurs to drivers or passengers. While these are slightly fewer in number compared to failed to remain collisions, they still represent a more severe subset of accidents that require further attention. Failed to remain collisions, where drivers flee the scene of the accident, are more common than injury collisions but have the least overlap with both injury and property damage incidents. This minimal overlap suggests that hit-and-run cases are a distinct category of accidents, often disconnected from the other two types, which might require different preventive strategies—such as better surveillance systems or harsher penalties for offenders.
+
+Given that fatalities are extreme outliers in terms of frequency, they warrant a separate analysis. While they occur in far fewer instances than injuries or property damage collisions, their severe consequences make them critically important for road safety planning. Fatal collisions often involve higher speeds, riskier driving behavior (such as driving under the influence), or particularly dangerous road conditions (e.g., icy roads). This reinforces the need for focused interventions targeting these outlier events.
+
+## Fatalities Insights
+The trend of declining fatalities from 2014 to 2024 is a positive outcome, reflecting the impact of improved road safety regulations, advances in vehicle technology (such as airbags, anti-lock brakes, and collision avoidance systems), and better public awareness of safe driving practices. However, it is important to acknowledge that this downward trend is influenced by a range of external factors, many of which are difficult to control. In a country like Canada, where winter conditions create significant challenges for drivers, weather-related accidents may remain an unfortunate reality. While safety campaigns can prepare drivers for icy or snowy conditions, accidents linked to poor weather may never be completely eliminated.
+
+Fatalities caused by controllable factors, such as distracted driving (e.g., using phones) or drunk driving, can be addressed more directly through stricter enforcement and educational campaigns. Policies that target these behaviors—such as harsher penalties for phone use while driving and regular sobriety checkpoints—can help reduce fatalities related to human error. While the 10-year period analyzed in this study reveals a favorable downward trend, it is a relatively short time frame for long-term safety assessments. Extrapolating from this data suggests that fatalities may continue to decline, but more robust, longitudinal data is needed to draw firmer conclusions.
+
+As of early September, the number of road fatalities in Toronto stands at 30 [@FatalitiesRecent], which still reflects a decline, but with a few months remaining in the year, it is unclear whether the final tally will continue this downward trend. This uncertainty underscores the importance of remaining vigilant and adaptable when it comes to road safety measures and policies, as the near future trend remains uncertain. Predicting future trends based on present data offers a useful tool for policymakers, but continual monitoring and adaptation of road safety strategies are essential to maintaining and enhancing this progress.
+
+
+\newpage
+
+
+# References
+
+
+
+
+look at my code, and tell me if my code is using any extra packages that i have not stated in the library() in the beginning
+ChatGPT
+
+Thought for 14 seconds
+
+Upon reviewing your code, I noticed that you're using the here package without explicitly loading it at the beginning of your script. Specifically, you use the here::here() function in the following line:
+
+r
+Copy code
+data <- read_csv(here::here("data/analysis_data/cleaned_collision_data.csv"))
+The here package provides a simple way to construct file paths relative to your project's root directory, which is useful for making your code more portable and easier to manage. To ensure that your code runs smoothly without any errors related to missing packages, you should load the here package using library(here) at the start of your script.
+
+Updated Library Calls
+Add library(here) to your list of packages:
+
+r
+Copy code
+library(tidyverse)
+library(knitr)
+library(opendatatoronto)
+library(dplyr)
+library(here)  # Add this line
+Explanation of Packages Used
+Here's a summary of the packages you've used in your code:
+
+tidyverse: A collection of R packages designed for data science, including ggplot2, dplyr, tidyr, readr, purrr, and tibble. By loading tidyverse, you're also loading these core packages, which cover most of the functions you're using, such as ggplot(), geom_bar(), mutate(), group_by(), summarise(), pivot_longer(), and recode().
+
+knitr: Used for dynamic report generation in R, and provides the kable() function for creating tables.
+
+opendatatoronto: A package that provides access to Open Data Toronto datasets, though in your current code snippet, it doesn't appear that you're using functions from this package directly.
+
+dplyr: Although dplyr is part of the tidyverse, you've also loaded it explicitly. It provides functions for data manipulation like mutate(), group_by(), summarise(), and %>% (the pipe operator).
+
+here: Provides the here() function to construct file paths relative to your project's root directory. This is used in your code but wasn't loaded initially.
+
+Other Considerations
+ggplot2: Part of the tidyverse, so functions like ggplot(), geom_bar(), geom_line(), theme_minimal(), labs(), theme(), element_text(), element_line(), scale_x_continuous(), scale_fill_manual(), coord_polar(), and theme_void() are covered.
+
+tidyr: Also part of the tidyverse, which provides pivot_longer() for reshaping data.
+
+readr: Included in tidyverse, and provides read_csv() for reading CSV files.
+
+Base R Functions: Functions like is.na(), sum(), round(), and basic data manipulation are part of base R and don't require additional packages.
+
+Conclusion
+Your code is mostly utilizing functions from packages that are either explicitly loaded or included within the tidyverse collection. The only additional package you're using without loading is here. By adding library(here) to your script, you should have all the necessary packages loaded for your code to run without issues.
+
+Let me know if you have any other questions or need further assistance!
+
+
+
+
+
+
+You said:
+give me the bibtex citation of here package
+ChatGPT
+
+Thought for 9 seconds
+
+Certainly! Here is the BibTeX citation for the here package:
+
+bibtex
+Copy code
+@Manual{here,
+  title  = {here: A Simpler Way to Find Your Files},
+  author = {Kirill M\"uller},
+  year   = {2020},
+  note   = {R package version 1.0.1},
+  url    = {https://CRAN.R-project.org/package=here},
+}
+You can add this entry to your references.bib file to properly cite the here package in your paper. If you want to reference it within your document, you can use [@here] in your text, assuming you've labeled the citation as here in your BibTeX file.
+
+Note: If you prefer, you can obtain the most up-to-date citation information directly from R by running the following command:
+
+r
+Copy code
+citation("here")
+This will provide you with the citation details based on the version of the here package installed on your system.
+
+
+
+
+
+
+You said:
+The data used in this paper came from the Open Data Toronto portal through the library opendatatoronto [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open source statistical programming language R [@citeR]. Libraries tidyverse [@CiteTD], knitr [@knitr] and dplyr [@citedplyr] were used for simulating, cleaning and testing. Graphics were made using ggplot2 [@citeGG].
+
+now update this to add the here citation
+ChatGPT
+
+Thought for 9 seconds
+
+Sure! Here's the updated paragraph with the here package and its citation added:
+
+The data used in this paper came from the Open Data Toronto portal through the library opendatatoronto [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open source statistical programming language R [@citeR]. Libraries tidyverse [@CiteTD], knitr [@knitr], dplyr [@citedplyr], and here [@here] were used for simulating, cleaning, and testing. Graphics were made using ggplot2 [@citeGG].
+
+Make sure to include the BibTeX citation for the here package in your references.bib file:
+
+bibtex
+Copy code
+@Manual{here,
+  title  = {here: A Simpler Way to Find Your Files},
+  author = {Kirill Müller},
+  year   = {2020},
+  note   = {R package version 1.0.1},
+  url    = {https://CRAN.R-project.org/package=here},
+}
+Now, you can reference the here package in your document using [@here], as shown in the updated paragraph.
+
+
+
+
+
+
+You said:
+does here count for used for simulating, cleaning, and testing.?
+ChatGPT
+
+Thought for 6 seconds
+
+You raise a good point. The here package is specifically designed to simplify file path management by constructing paths relative to the project's root directory. It doesn't directly contribute to data simulation, cleaning, or testing processes. Instead, it helps in organizing and accessing data files in a reproducible and portable way.
+
+Therefore, including here in the list of packages "used for simulating, cleaning, and testing" might not accurately reflect its purpose in your analysis. It would be more appropriate to mention here separately, emphasizing its role in file path management.
+
+Updated Paragraph:
+The data used in this paper came from the Open Data Toronto portal through the library opendatatoronto [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open-source statistical programming language R [@citeR]. Libraries tidyverse [@CiteTD], dplyr [@citedplyr], and knitr [@knitr] were used for simulating, cleaning, and testing. The here package [@here] was utilized for managing file paths to ensure reproducibility. Graphics were created using ggplot2 [@citeGG].
+
+Explanation:
+Separated here Package: Moved the mention of here to a separate sentence to highlight its specific role in managing file paths.
+Adjusted Verbs: Changed "Graphics were made using" to "Graphics were created using" for variety and clarity.
+Ensured Accuracy: By specifying the role of each package, the paragraph now accurately reflects how each was used in your analysis.
+Alternative Wording (If Preferred):
+The data used in this paper came from the Open Data Toronto portal through the library opendatatoronto [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open-source statistical programming language R [@citeR]. Libraries tidyverse [@CiteTD], dplyr [@citedplyr], and knitr [@knitr] were used for simulating, cleaning, and testing, while here [@here] facilitated reproducible file path management. Graphics were created using ggplot2 [@citeGG].
+
+Additional Notes:
+Consistency in Library Mentions: Ensured that all libraries are mentioned in a way that reflects their primary function in your analysis.
+Clarity for the Reader: This adjustment helps readers understand the specific role of the here package without conflating its purpose with data manipulation tasks.
+Action Items:
+Update Your references.bib File: Make sure you've added the BibTeX entry for the here package so that the citation [here] is properly referenced in your document.
+
+bibtex
+Copy code
+@Manual{here,
+  title  = {here: A Simpler Way to Find Your Files},
+  author = {Kirill Müller},
+  year   = {2020},
+  note   = {R package version 1.0.1},
+  url    = {https://CRAN.R-project.org/package=here},
+}
+Review Other Mentions: Consider if any other packages or tools in your analysis might need similar clarification to accurately reflect their roles.
+
+Conclusion:
+By updating the paragraph to specify the role of the here package, your methodology section becomes more precise, helping readers understand how each tool contributed to your analysis. This attention to detail enhances the credibility and clarity of your work.
+
+Let me know if you need further assistance or have other questions!
+
+
+
+
+
+
+You said:
+does that mean if someone else copy my file they canrun the code on their computer too
+ChatGPT
+
+Thought for 10 seconds
+
+Yes, incorporating the here package into your code enhances its portability and reproducibility. The here package helps manage file paths relative to the root of your project directory, which means that as long as the relative structure of your project is maintained, others can run your code on their computers without needing to adjust file paths manually.
+
+Implications for Code Sharing:
+Portability: By using here::here("path/to/your/file"), your code dynamically constructs file paths based on the project's root directory. This eliminates hard-coded paths that are specific to your machine, making it easier for others to run your code without modifications.
+
+Reproducibility: Sharing your code along with the necessary data files and specifying all required packages ensures that others can reproduce your analysis exactly as you did.
+
+What Others Need to Run Your Code:
+Project Structure:
+
+Same Directory Layout: The relative paths within your project should remain the same. When someone clones or copies your project, the directory structure should be preserved.
+Required Packages:
+
+Install Necessary Libraries: Ensure that all the libraries used in your code are listed and loaded at the beginning of your script. Others will need to install these packages on their systems using install.packages("packageName").
+
+List of Libraries:
+
+r
+Copy code
+library(tidyverse)
+library(knitr)
+library(opendatatoronto)
+library(dplyr)
+library(here)
+# Add any other packages used
+Data Files:
+
+Include Data: Provide the necessary data files, such as cleaned_collision_data.csv, within the project directory.
+
+Data Accessibility: If the data is too large to share directly or subject to usage restrictions, provide code that downloads or accesses the data programmatically.
+
+Instructions:
+
+README File: Include a README file that provides instructions on how to set up the environment, install required packages, and run the code.
+
+Session Information: Optionally, include session information (e.g., output from sessionInfo()) to specify the versions of R and packages used.
+
+Potential Considerations:
+Package Versions: Differences in package versions can sometimes lead to discrepancies in results or unexpected errors. Specifying package versions can help mitigate this.
+
+Operating System Differences: While R is cross-platform, minor differences between operating systems (Windows, macOS, Linux) can affect file paths or package behavior. Using here helps minimize file path issues.
+
+External Dependencies: If your code relies on external resources (e.g., internet access for downloading data), make sure to document this.
+
+Steps for Others to Run Your Code:
+Clone or Download the Project:
+
+Use Git to clone the repository or download it as a ZIP file.
+Install R and RStudio:
+
+Ensure that R and, optionally, RStudio are installed on their system.
+Install Required Packages:
+
+Run the following commands in R to install the necessary packages:
+
+r
+Copy code
+install.packages(c("tidyverse", "knitr", "opendatatoronto", "dplyr", "here"))
+Open the Project:
+
+Open the R project file (.Rproj) if one exists, or set the working directory to the project's root folder.
+Run the Code:
+
+Execute the script or knit the document if it's an R Markdown or Quarto file.
+Example of a README File:
+markdown
+Copy code
+# Traffic Collisions in Toronto: Analysis of Key Variables
+
+## Overview
+
+This project analyzes traffic collisions in Toronto from 2014 to 2024. It includes code for data cleaning, analysis, and visualization.
+
+## Requirements
+
+- R (version X.X.X or higher)
+- RStudio (optional but recommended)
+
+## Required Packages
+
+Install the following R packages before running the code:
+
+```r
+install.packages(c("tidyverse", "knitr", "opendatatoronto", "dplyr", "here"))
+Data
+Place cleaned_collision_data.csv in the data/analysis_data/ directory.
+Alternatively, run the provided data cleaning script to generate the cleaned data.
+Running the Code
+Open the R project file (.Rproj) in RStudio.
+Open the script or document file (.R, .Rmd, or .qmd).
+Run the script line by line or knit/render the document.
+Notes
+Ensure that the directory structure remains the same to avoid file path issues.
+If you encounter any errors, please check that all packages are installed and up to date.
+vbnet
+Copy code
+
+### **Conclusion:**
+
+By using the **`here`** package and providing clear instructions, you've made it much easier for others to replicate your analysis on their own computers. As long as they maintain the same directory structure and install the required packages, they should be able to run your code without any issues.
+
+**Feel free to ask if you need help with creating a README file or have other questions about making your project more accessible to others!**
+
+
+
+
+
+You said:
+should i R or just leave it as now
+ChatGPT
+
+Thought for 12 seconds
+
+It seems like you're asking whether you should specify the language in your code blocks (e.g., using ```{r}) or leave them as they are currently. Including the language identifier in your code blocks is a good practice, especially when writing Markdown, R Markdown, or Quarto documents. It helps with syntax highlighting and ensures that code chunks are properly processed when the document is rendered.
+
+Recommendation:
+Specify the Language in Code Blocks: Use ```{r} at the beginning of your code chunks to indicate that the code is in R. This is important for tools like knitr and Quarto to correctly interpret and execute your code when compiling the document.
+Example:
+Instead of writing your code blocks without specifying the language:
+
+<pre> ``` # Your R code here ``` </pre>
+You should include {r} to specify that the code is in R:
+
+<pre> ```{r} # Your R code here ``` </pre>
+Benefits of Specifying the Language:
+Syntax Highlighting:
+Editors and renderers can provide syntax highlighting, making the code easier to read and understand.
+Proper Execution:
+Tools like knitr or Quarto use the language specification to know how to execute the code chunks. This ensures that your code runs correctly during document compilation.
+Reproducibility:
+Clearly specifying the language helps others who read your document to understand and reproduce your analysis without confusion.
+Error Checking:
+Language-specific linting and error checking can be applied, helping you catch mistakes early.
+Action Steps:
+Review Your Code Blocks:
+Go through your document and ensure that all code blocks are labeled with {r} if they contain R code.
+Maintain Consistency:
+Consistently specifying the language across all code chunks improves the overall quality and professionalism of your document.
+Example from Your Document:
+In your code snippets, you have code chunks like:
+
+r
+Copy code
+#| label: fig-collisions-day
+#| fig-cap: Total traffic collisions by day of the week from 2014 to 2024
+#| echo: false
+
+data$OCC_DOW <- factor(data$OCC_DOW,
+  levels = c(
+    "Monday", "Tuesday", "Wednesday", "Thursday",
+    "Friday", "Saturday", "Sunday"
+  )
+)
+ggplot(data, aes(x = OCC_DOW)) +
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
+  theme_minimal() +
+  labs(
+    title = "Traffic Collisions by Day of the Week",
+    x = "Day of Week", y = "Total Count of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+This is correctly specified with {r} at the beginning, ensuring that the code is recognized as R code.
+
+Conclusion:
+I recommend keeping the {r} language specification in your code blocks. This practice enhances the readability and reproducibility of your document. It allows anyone who reads your work or tries to run your code to understand that it's written in R and ensures that tools like knitr or Quarto can process your document without issues.
+
+Let me know if this answers your question or if you need further assistance!
+
+
+
+
+
+
+You said:
+@Manual{citeR,
+    title = {R: A Language and Environment for Statistical Computing},
+    author = {{R Core Team}},
+    organization = {R Foundation for Statistical Computing},
+    address = {Vienna, Austria},
+    year = {2023},
+    url = {https://www.R-project.org/},
+  }
+  
+@Manual{citeODT,
+  title = {opendatatoronto: Access the City of Toronto Open Data Portal},
+  author = {Sharla Gelfand},
+  year = {2022},
+  note = {R package version 0.1.5},
+  url = {https://CRAN.R-project.org/package=opendatatoronto},
+  }
+  
+@Article{CiteTD,
+  title = {Welcome to the {tidyverse}},
+  author = {Hadley Wickham and Mara Averick and Jennifer Bryan and Winston Chang and Lucy DAgostino McGowan and Romain François and Garrett Grolemund and Alex Hayes and Lionel Henry and Jim Hester and Max Kuhn and Thomas Lin Pedersen and Evan Miller and Stephan Milton Bache and Kirill Müller and Jeroen Ooms and David Robinson and Dana Paige Seidel and Vitalie Spinu and Kohske Takahashi and Davis Vaughan and Claus Wilke and Kara Woo and Hiroaki Yutani},
+    year = {2019},
+    journal = {Journal of Open Source Software},
+    volume = {4},
+    number = {43},
+    pages = {1686},
+    doi = {10.21105/joss.01686},
+  }
+  
+@Manual{knitr,
+  title = {knitr: A General-Purpose Package for Dynamic Report Generation in R},
+  author = {Yihui Xie},
+  year = {2022},
+  note = {R package version 1.36},
+  url = {https://yihui.org/knitr/},
+  }
+  
+@Manual{citedplyr,
+    title = {dplyr: A Grammar of Data Manipulation},
+    author = {Hadley Wickham and Romain François and Lionel Henry and Kirill Müller and Davis Vaughan},
+    year = {2023},
+    note = {R package version 1.1.4},
+    url = {https://CRAN.R-project.org/package=dplyr}
+    }
+    
+@Book{citeGG,
+  author = {Hadley Wickham},
+  title = {ggplot2: Elegant Graphics for Data Analysis},
+  publisher = {Springer-Verlag New York},
+  year = {2016},
+  isbn = {978-3-319-24277-4},
+  url = {https://ggplot2.tidyverse.org},
+  }
+  
+@webpage{CollisionDataCite,
+  title = {Traffic Collisions},
+  author = {City of Toronto},
+  publisher = {City of Toronto, OpenData},
+  url = {https://open.toronto.ca/dataset/police-annual-statistical-report-traffic-collisions/},
+  year = {2024}
+  }
+
+@article{FatalitiesRecent, 
+  title={So Far, 30 People Have Died on Toronto’s Roads in 2024}, 
+  url={https://www.cbc.ca/news/canada/toronto/30-road-deaths-in-2024-vision-zero-1.7313358}, 
+  journal={CBC}, 
+  author={Pasieka, Clara}, 
+  year={2024}, 
+  month={Sep}
+  }
+  
+@article{CongestionPlan, 
+  title={Toronto Officials Unveil Latest Plans to Ease Traffic Congestion},
+  url={https://www.cbc.ca/news/canada/toronto/toronto-traffic-congestion-plan-1.7330178}, 
+  journal={CBC}, 
+  author={CBC News},
+  year={2024}, 
+  month={Sep}
+  }
+  
+@Manual{Citehere,
+  title  = {here: A Simpler Way to Find Your Files},
+  author = {Kirill M\"uller},
+  year   = {2020},
+  note   = {R package version 1.0.1},
+  url    = {https://CRAN.R-project.org/package=here},
+  }
+
+this is my references, am i missing anything based on the qmd code i provided to u
+ChatGPT
+
+Thought for 24 seconds
+
+After reviewing your provided code and references, I have checked for any discrepancies or missing citations. Here's what I found:
+
+1. Citation Label Mismatch for the here Package
+In Your Code and Text:
+
+You reference the here package as [@here].
+In Your References (references.bib):
+
+The BibTeX entry for the here package is labeled as @Manual{Citehere, ...}.
+Recommendation:
+
+To ensure that the citations in your document link correctly to the references, the citation keys (labels) used in your text must match those in your references.bib file. Here's how you can resolve this:
+
+Option A: Change the label in your references.bib file to match the one used in your text.
+
+bibtex
+Copy code
+@Manual{here,
+  title  = {here: A Simpler Way to Find Your Files},
+  author = {Kirill Müller},
+  year   = {2020},
+  note   = {R package version 1.0.1},
+  url    = {https://CRAN.R-project.org/package=here},
+}
+Action: Replace Citehere with here in your BibTeX entry.
+Option B: Update the citation in your text to match the label in your references.bib file.
+
+In your text:
+Change [@here] to [@Citehere].
+Why This Matters:
+
+Consistency: The citation key must be consistent between your text and the reference entry for the citation to work properly.
+Avoiding Errors: Mismatched citation keys can lead to missing references or compilation errors when rendering your document.
+2. Verification of Other Packages and Citations
+I have cross-referenced all the packages and sources used in your code with your references.bib file. Here is a summary:
+
+Packages and Libraries Used:
+R: [@citeR]
+
+Reference Entry: @Manual{citeR, ...}
+opendatatoronto: [@citeODT]
+
+Reference Entry: @Manual{citeODT, ...}
+tidyverse: [@CiteTD]
+
+Reference Entry: @Article{CiteTD, ...}
+knitr: [@knitr]
+
+Reference Entry: @Manual{knitr, ...}
+dplyr: [@citedplyr]
+
+Reference Entry: @Manual{citedplyr, ...}
+ggplot2: [@citeGG]
+
+Reference Entry: @Book{citeGG, ...}
+here: [@here] (needs correction as mentioned)
+
+Reference Entry: @Manual{Citehere, ...} (should be @Manual{here, ...} or update citation in text)
+Data Sources and Articles Cited:
+Collision Data: [@CollisionDataCite]
+
+Reference Entry: @webpage{CollisionDataCite, ...}
+Recent Fatalities Article: [@FatalitiesRecent]
+
+Reference Entry: @article{FatalitiesRecent, ...}
+Congestion Plan Article: [@CongestionPlan]
+
+Reference Entry: @article{CongestionPlan, ...}
+Functions and Packages Implicitly Used:
+pivot_longer() Function:
+
+Provided by the tidyr package, which is part of the tidyverse collection. Since you've cited tidyverse, this is covered.
+recode() Function:
+
+Comes from dplyr, which you've cited.
+here::here() Function:
+
+From the here package. As discussed, ensure the citation label matches.
+read_csv() Function:
+
+From the readr package, also part of tidyverse.
+Other Functions from Base R and Packages Cited:
+
+Functions like mutate(), group_by(), summarise(), ggplot(), geom_bar(), geom_line(), etc., are from packages you've already cited.
+3. Conclusion
+All Packages and Sources Used Are Cited:
+
+Except for the label mismatch with the here package, all other packages and data sources you've used are properly cited and included in your references.bib file.
+Action Needed:
+
+Correct the Citation Label for the here Package to ensure consistency between your text and references.
+4. Additional Recommendations
+Double-Check Citation Labels:
+
+Review your document to ensure that all citation keys used in the text match those in the references.bib file.
+Consistent Formatting:
+
+Ensure that all your references are formatted consistently, following the citation style required for your paper (e.g., APA, MLA, Chicago).
+Update Package Versions (Optional):
+
+You may consider updating the year and version information in your references to reflect the versions of the packages you are actually using, especially if they differ from those in the current references.
+Example of Corrected Reference Entry for here Package
+If you decide to change the label to match the citation in your text:
+
+bibtex
+Copy code
+@Manual{here,
+  title  = {here: A Simpler Way to Find Your Files},
+  author = {Kirill Müller},
+  year   = {2020},
+  note   = {R package version 1.0.1},
+  url    = {https://CRAN.R-project.org/package=here},
+}
+And then, in your text, you can keep using [@here] as you currently do.
+
+Final Note
+With this correction, your references should be complete and accurately reflect the packages and sources used in your analysis. This will enhance the reproducibility and credibility of your work.
+
+If you have any further questions or need assistance with anything else, feel free to ask!
+
+
+
+
+
+
+You said:
+check for missing library i did not cite: 
+
+#### Preamble ####
+# Purpose: Simulates traffic collision data for pre-analysis
+# Author: Andy Jiang
+# Date: 22 September 2024
+# Contact: ayx.jiang@mail.utoronto.ca
+# Pre-requisites: None
+
+#### Workspace setup ####
+library(tidyverse)
+
+#### Simulate data ####
+set.seed(304)
+
+# Define the start and end date
+start_date <- as.Date("2014-01-01")
+end_date <- as.Date("2024-12-31")
+
+# Set the number of random dates
+number_of_dates <- 100
+
+# Simulate 100 random traffic collision observations.
+
+# Data features:
+# - 'division' indicating the police division where the collision occurred
+# - 'fatalities', 'injury_collisions', 'ftr_collisions', and 'pd_collisions'
+#   using Poisson distribution
+# NOTE: Fail to Remain (FTR) collisions and property damage (PD) collisions
+# - Binary indicators for 'automobile', 'pedestrian', and 'bicycle'
+#   involvement in the collisions
+
+simulated_data <- tibble(
+  dates = as.Date(
+    runif(
+      n = number_of_dates,
+      min = as.numeric(start_date), max = as.numeric(end_date)
+    ),
+    origin = "1970-01-01"
+  ),
+  # Assign hour between 0 and 23
+  hour = sample(0:23, number_of_dates, replace = TRUE),
+
+  # Assign random police divisions
+  division = sample(1:14, number_of_dates, replace = TRUE),
+
+  # Generate fatalities
+  fatalities = {
+    temp <- rpois(n = number_of_dates, lambda = 0.05)
+    ifelse(temp < 1, NA, temp)
+  },
+
+  # Generate collisions
+  injury_collisions = ifelse(rpois(n = number_of_dates, lambda = 1) > 0,
+    "YES", "NO"
+  ),
+  ftr_collisions = ifelse(rpois(n = number_of_dates, lambda = 0.5) > 0,
+    "YES", "NO"
+  ),
+  pd_collisions = ifelse(rpois(n = number_of_dates, lambda = 2) > 0,
+    "YES", "NO"
+  ),
+
+  # Generate involvement of vehicle or person
+  automobile = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1,
+    "YES", "NO"
+  ),
+  pedestrian = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1,
+    "YES", "NO"
+  ),
+  bicycle = ifelse(sample(c(0, 1), number_of_dates, replace = TRUE) == 1,
+    "YES", "NO"
+  )
+)
+
+#### Write_csv ####
+write_csv(simulated_data, file = "data/raw_data/simulated_collision_data.csv")
+
+
+### Test simulated data ###
+
+# Test 1: test that fatalities is either NA or greater than or equal to 1
+test_fatalities <- all(is.na(simulated_data$fatalities)
+                       | simulated_data$fatalities >= 1)
+cat("Test 1 - Fatalities are either NA or >= 1:", test_fatalities, "\n")
+
+# Test 2: test there are exactly 100 rows
+test_row_count <- nrow(simulated_data) == 100
+cat("Test 2 - Dataset has 100 rows:", test_row_count, "\n")
+
+# Test 3: test "injury_collisions", "ftr_collisions", and "pd_collisions"
+# only have "YES" or "NO" values
+test_collisions <- all(simulated_data$injury_collisions %in% c("YES", "NO")) &&
+  all(simulated_data$ftr_collisions %in% c("YES", "NO")) &&
+  all(simulated_data$pd_collisions %in% c("YES", "NO"))
+cat(
+  "Test 3 - Collisions columns have 'YES' or 'NO' values:",
+  test_collisions, "\n"
+)
+
+# Test 4: test "automobile", "pedestrian", and "bicycle" only have "YES" or "NO"
+test_vehicle_person <- all(simulated_data$automobile %in% c("YES", "NO")) &&
+  all(simulated_data$pedestrian %in% c("YES", "NO")) &&
+  all(simulated_data$bicycle %in% c("YES", "NO"))
+cat(
+  "Test 4 - Vehicle and person involvement columns have 'YES' or 'NO':",
+  test_vehicle_person, "\n"
+)
+
+# Test 5: Ensure that 'hour' column contains only values between 0 and 23
+test_hour_range <- all(simulated_data$hour >= 0 & simulated_data$hour <= 23)
+cat(
+  "Test 5 - Hour column contains values between 0 and 23:",
+  test_hour_range, "\n"
+)
+ChatGPT
+
+Thought for 26 seconds
+
+After carefully reviewing your code, I noticed that you're using functions from additional packages that you've not cited in your references. Specifically, you're using:
+
+tibble Package:
+
+Function Used: tibble()
+Purpose: Used to create data frames in a modern and consistent way.
+readr Package:
+
+Function Used: write_csv()
+Purpose: Provides fast and friendly functions for reading and writing delimited files.
+These packages are part of the tidyverse, which you've already loaded using library(tidyverse) and cited with [@CiteTD]. However, since you've cited dplyr separately as [@citedplyr], it would be consistent and more precise to also cite tibble and readr separately, acknowledging their specific contributions to your code.
+
+Missing Library Citations:
+tibble Package
+
+BibTeX Citation:
+
+bibtex
+Copy code
+@Manual{citetibble,
+  title  = {tibble: Simple Data Frames},
+  author = {Hadley Wickham and Kirill Müller},
+  year   = {2023},
+  note   = {R package version 3.2.1},
+  url    = {https://CRAN.R-project.org/package=tibble},
+}
+How to Reference in Your Document:
+
+Add the citation key to your references (e.g., citetibble).
+Reference it in your text where appropriate, e.g., tibble [@citetibble].
+readr Package
+
+BibTeX Citation:
+
+bibtex
+Copy code
+@Manual{citereadr,
+  title  = {readr: Read Rectangular Text Data},
+  author = {Hadley Wickham and Jim Hester and Romain François},
+  year   = {2023},
+  note   = {R package version 2.1.4},
+  url    = {https://CRAN.R-project.org/package=readr},
+}
+How to Reference in Your Document:
+
+Add the citation key to your references (e.g., citereadr).
+Reference it in your text where appropriate, e.g., readr [@citereadr].
+Updated References Section:
+Include the new citations in your references.bib file:
+
+bibtex
+Copy code
+@Manual{citetibble,
+  title  = {tibble: Simple Data Frames},
+  author = {Hadley Wickham and Kirill Müller},
+  year   = {2023},
+  note   = {R package version 3.2.1},
+  url    = {https://CRAN.R-project.org/package=tibble},
+}
+
+@Manual{citereadr,
+  title  = {readr: Read Rectangular Text Data},
+  author = {Hadley Wickham and Jim Hester and Romain François},
+  year   = {2023},
+  note   = {R package version 2.1.4},
+  url    = {https://CRAN.R-project.org/package=readr},
+}
+Adjusting Your Methodology Section:
+Update the section where you mention the packages used to include tibble and readr.
+
+Original Text:
+
+Libraries tidyverse [@CiteTD], knitr [@knitr], and dplyr [@citedplyr] were used for simulating, cleaning, and testing.
+
+Updated Text:
+
+Libraries tidyverse [@CiteTD], tibble [@citetibble], readr [@citereadr], dplyr [@citedplyr], and knitr [@knitr] were used for simulating, cleaning, and testing.
+
+Rationale:
+Consistency: Since you've cited dplyr separately, it's consistent to also cite other tidyverse packages used explicitly in your code.
+Acknowledgment: Properly citing all packages used ensures that the authors of those packages receive appropriate credit for their work.
+Reproducibility: Clear documentation of all dependencies helps others reproduce your analysis accurately.
+Additional Checks:
+Base R Functions: Functions like set.seed(), runif(), rpois(), sample(), ifelse(), as.Date(), as.numeric(), is.na(), all(), nrow(), and cat() are base R functions and don't require additional package citations.
+No Additional Packages Detected: Aside from tibble and readr, all other functions used are either from base R or packages you've already cited.
+Conclusion:
+By adding citations for the tibble and readr packages, your references will comprehensively cover all the libraries used in your code. This enhances the transparency and reproducibility of your work.
+
+Let me know if you need any further assistance or have other questions!
+
+
+
+
+
+
+You said:
+ive cited the two more libraries, check if there are more missing citation for these codes:
+
+#### Preamble ####
+# Purpose: Downloads and saves the data from Open Data Toronto
+# Author: Andy Jiang
+# Date: 22 September 2024
+# Contact: ayx.jiang@mail.utoronto.ca
+# Pre-requisites: None
+
+#### Workspace setup ####
+library(opendatatoronto)
+library(dplyr)
+
+# get package
+package <- show_package("ec53f7b2-769b-4914-91fe-a37ee27a90b3")
+package
+
+# get all resources for this package
+resources <- list_package_resources("ec53f7b2-769b-4914-91fe-a37ee27a90b3")
+
+# identify datastore resources; by default, Toronto Open Data sets datastore
+# resource format to CSV for non-geospatial and GeoJSON for geospatial resources
+datastore_resources <- filter(resources, tolower(format) %in% c("csv"))
+
+# load the first datastore resource as a sample
+collision_data <- filter(datastore_resources, row_number() == 1) %>%
+  get_resource()
+
+# Save the data
+write.csv(collision_data, "data/raw_data/raw_collision_data.csv")
+
+
+
+#### Preamble ####
+# Purpose: Clean the traffic collision raw data
+# Author: Andy Jiang
+# Date: 23 September 2024
+# Contact: ayx.jiang@mail.utoronto.ca
+# Pre-requisites: Raw data downloaded
+
+#### Workspace setup ####
+library(tidyverse)
+
+#### Load raw data ####
+raw_data <- read_csv("data/raw_data/raw_collision_data.csv")
+
+#### Clean data by removing specified columns ####
+# Specific date(day) and precise location removed, not needed for my analysis.
+# id, police division and neighbourhood removed, analysis not involving
+# location specific relationships.
+# Vehicle type removed due to dominantly being automobile
+cleaned_data <- raw_data %>%
+  select(
+    -...1, -OCC_DATE, -X_id, -DIVISION, -HOOD_158, -LONG_WGS84,
+    -LAT_WGS84, -geometry, -NEIGHBOURHOOD_158, -AUTOMOBILE, -MOTORCYCLE,
+    -PASSENGER, -BICYCLE, -PEDESTRIAN
+  )
+
+#### Save the cleaned data ####
+write_csv(cleaned_data, "data/analysis_data/cleaned_collision_data.csv")
+
+
+
+#### Preamble ####
+# Purpose: Sanity check of the cleaned collision data
+# Author: Andy Jiang
+# Date: 23 September 2024
+# Contact: ayx.jiang@mail.utoronto.ca
+# Pre-requisites: Need to have cleaned the data
+
+#### Workspace setup ####
+library(tidyverse)
+
+#### Load cleaned data ####
+data <- read_csv("data/analysis_data/cleaned_collision_data.csv")
+
+### Test if fatalities are either NA or positive integers ###
+valid_fatalities_check <- all(is.na(data$FATALITIES) | data$FATALITIES >= 0)
+
+### Test for valid collision hour (0 to 23) ###
+valid_hour_check <- all(data$OCC_HOUR >= 0 & data$OCC_HOUR <= 23, na.rm = TRUE)
+
+### Test if INJURY_COLLISIONS, FTR_COLLISIONS, and PD_COLLISIONS
+### contain only "YES", "NO", or "None" ###
+valid_collision_check <- all(
+  data$INJURY_COLLISIONS %in% c("YES", "NO", "None") &
+    data$FTR_COLLISIONS %in% c("YES", "NO", "None") &
+    data$PD_COLLISIONS %in% c("YES", "NO", "None")
+)
+
+### Test if OCC_YEAR is from 2014 to 2024 ###
+valid_year_check <- all(data$OCC_YEAR >= 2014 & 
+                          data$OCC_YEAR <= 2024, na.rm = TRUE)
+
+### Test if OCC_MONTH contains valid month names ###
+valid_month_names <- c(
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November",
+  "December"
+)
+
+valid_month_check <- all(data$OCC_MONTH %in% valid_month_names, na.rm = TRUE)
+ChatGPT
+
+Thought for 22 seconds
+
+After reviewing your code and the updated citations, it appears that you've successfully cited the additional libraries tibble and readr as previously suggested. Let's verify whether there are any other missing citations based on the code you've provided.
+
+Code Review and Package Usage
+1. First Code Block: Data Download and Saving
+r
+Copy code
+#### Workspace setup ####
+library(opendatatoronto)
+library(dplyr)
+
+# Functions Used:
+# - show_package()
+# - list_package_resources()
+# - filter()
+# - tolower()
+# - row_number()
+# - get_resource()
+# - write.csv()
+Package Breakdown:
+
+opendatatoronto:
+
+Functions: show_package(), list_package_resources(), get_resource()
+Cited as: [@citeODT]
+dplyr:
+
+Functions: filter(), row_number()
+Cited as: [@citedplyr]
+Base R:
+
+Functions: tolower(), write.csv()
+No additional citation needed (R is already cited as [@citeR])
+2. Second Code Block: Data Cleaning
+r
+Copy code
+#### Workspace setup ####
+library(tidyverse)
+
+# Functions Used:
+# - read_csv()
+# - select()
+# - write_csv()
+Package Breakdown:
+
+tidyverse:
+
+Includes: readr, dplyr, ggplot2, tibble, etc.
+Cited as: [@CiteTD]
+readr:
+
+Functions: read_csv(), write_csv()
+Cited separately as: [@citereadr]
+dplyr:
+
+Function: select()
+Cited as: [@citedplyr]
+3. Third Code Block: Data Validation
+r
+Copy code
+#### Workspace setup ####
+library(tidyverse)
+
+# Functions Used:
+# - read_csv()
+# - all()
+# - is.na()
+# - %in%
+# - c()
+Package Breakdown:
+
+readr:
+
+Function: read_csv()
+Cited as: [@citereadr]
+Base R:
+
+Functions: all(), is.na(), %in%, c()
+No additional citation needed
+Summary of Packages Used and Citations
+Packages and Their Citations
+R: [@citeR]
+opendatatoronto: [@citeODT]
+tidyverse: [@CiteTD]
+dplyr: [@citedplyr]
+readr: [@citereadr] (Now cited)
+tibble: [@citetibble] (Now cited)
+knitr: [@knitr]
+ggplot2: [@citeGG]
+here: [@here]
+Packages Used in Code Blocks
+First Code Block:
+
+Packages: opendatatoronto, dplyr
+Cited: Yes
+Second Code Block:
+
+Packages: tidyverse (includes dplyr, readr)
+Cited: Yes (tidyverse and readr are both cited)
+Third Code Block:
+
+Packages: tidyverse (includes readr)
+Cited: Yes
+Base R Functions
+Functions like tolower(), write.csv(), all(), is.na(), %in%, c(), and logical operators are part of base R.
+R itself is cited as [@citeR].
+No additional citations needed for base R functions.
+Conclusion
+No Additional Missing Citations: Based on the code you've provided, all external packages and libraries used have been appropriately cited in your references.bib file.
+
+Consistency Achieved: By citing tibble and readr separately, you have maintained consistency in acknowledging the specific packages used in your analysis.
+
+Final Recommendations
+Double-Check Citation Labels: Ensure that all citation keys in your text match those in your references.bib file. For instance, verify that you're using [@citereadr] and [@citetibble] where appropriate.
+
+Keep Package Versions Updated: If possible, include the specific versions of the packages you used to enhance reproducibility.
+
+Include All Necessary Packages in Your Methodology Section: Make sure your methodology section mentions all the packages used, reflecting the citations in your references.
+
+Example of Updated Methodology Section
+Here's how you might update your methodology section to include all the packages:
+
+The data used in this paper came from the Open Data Toronto portal through the library opendatatoronto [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open-source statistical programming language R [@citeR]. Libraries tidyverse [@CiteTD], dplyr [@citedplyr], readr [@citereadr], tibble [@citetibble], knitr [@knitr], and here [@here] were used for simulating, cleaning, and testing. Graphics were created using ggplot2 [@citeGG].
+
+Your Updated References Should Include
+opendatatoronto: @Manual{citeODT, ...}
+dplyr: @Manual{citedplyr, ...}
+readr: @Manual{citereadr, ...}
+tibble: @Manual{citetibble, ...}
+tidyverse: @Article{CiteTD, ...}
+R: @Manual{citeR, ...}
+here: @Manual{here, ...}
+ggplot2: @Book{citeGG, ...}
+knitr: @Manual{knitr, ...}
+Other Sources: Collision data, articles, etc.
+Additional Notes
+No Need to Cite Base R Functions: Since you've already cited R itself, individual base functions don't require separate citations.
+
+Consistency in Citation Labels: Ensure that the labels used in your citations ([@citereadr], [@citetibble], etc.) match exactly with those in your references.bib file.
+
+Acknowledging All Tools: By citing all the packages and tools you've used, you not only give credit where it's due but also enhance the transparency and reproducibility of your work.
+
+You're all set! Your code and references are now complete, and there are no additional missing citations based on the code you've provided.
+
+If you have any further questions or need assistance with anything else, feel free to ask!
+
+
+
+
+
+
+You said:
+@Manual{citeR,
+    title = {R: A Language and Environment for Statistical Computing},
+    author = {{R Core Team}},
+    organization = {R Foundation for Statistical Computing},
+    address = {Vienna, Austria},
+    year = {2023},
+    url = {https://www.R-project.org/},
+  }
+  
+@Manual{citeODT,
+  title = {opendatatoronto: Access the City of Toronto Open Data Portal},
+  author = {Sharla Gelfand},
+  year = {2022},
+  note = {R package version 0.1.5},
+  url = {https://CRAN.R-project.org/package=opendatatoronto},
+  }
+  
+@Article{citeTD,
+  title = {Welcome to the {tidyverse}},
+  author = {Hadley Wickham and Mara Averick and Jennifer Bryan and Winston Chang and Lucy DAgostino McGowan and Romain François and Garrett Grolemund and Alex Hayes and Lionel Henry and Jim Hester and Max Kuhn and Thomas Lin Pedersen and Evan Miller and Stephan Milton Bache and Kirill Müller and Jeroen Ooms and David Robinson and Dana Paige Seidel and Vitalie Spinu and Kohske Takahashi and Davis Vaughan and Claus Wilke and Kara Woo and Hiroaki Yutani},
+    year = {2019},
+    journal = {Journal of Open Source Software},
+    volume = {4},
+    number = {43},
+    pages = {1686},
+    doi = {10.21105/joss.01686},
+  }
+  
+@Manual{citeknitr,
+  title = {knitr: A General-Purpose Package for Dynamic Report Generation in R},
+  author = {Yihui Xie},
+  year = {2022},
+  note = {R package version 1.36},
+  url = {https://yihui.org/knitr/},
+  }
+  
+@Manual{citedplyr,
+    title = {dplyr: A Grammar of Data Manipulation},
+    author = {Hadley Wickham and Romain François and Lionel Henry and Kirill Müller and Davis Vaughan},
+    year = {2023},
+    note = {R package version 1.1.4},
+    url = {https://CRAN.R-project.org/package=dplyr}
+    }
+    
+@Book{citeGG,
+  author = {Hadley Wickham},
+  title = {ggplot2: Elegant Graphics for Data Analysis},
+  publisher = {Springer-Verlag New York},
+  year = {2016},
+  isbn = {978-3-319-24277-4},
+  url = {https://ggplot2.tidyverse.org},
+  }
+  
+@webpage{CollisionDataCite,
+  title = {Traffic Collisions},
+  author = {City of Toronto},
+  publisher = {City of Toronto, OpenData},
+  url = {https://open.toronto.ca/dataset/police-annual-statistical-report-traffic-collisions/},
+  year = {2024}
+  }
+
+@article{FatalitiesRecent, 
+  title={So Far, 30 People Have Died on Toronto’s Roads in 2024}, 
+  url={https://www.cbc.ca/news/canada/toronto/30-road-deaths-in-2024-vision-zero-1.7313358}, 
+  journal={CBC}, 
+  author={Pasieka, Clara}, 
+  year={2024}, 
+  month={Sep}
+  }
+  
+@article{CongestionPlan, 
+  title={Toronto Officials Unveil Latest Plans to Ease Traffic Congestion},
+  url={https://www.cbc.ca/news/canada/toronto/toronto-traffic-congestion-plan-1.7330178}, 
+  journal={CBC}, 
+  author={CBC News},
+  year={2024}, 
+  month={Sep}
+  }
+  
+@Manual{citehere,
+  title  = {here: A Simpler Way to Find Your Files},
+  author = {Kirill M\"uller},
+  year   = {2020},
+  note   = {R package version 1.0.1},
+  url    = {https://CRAN.R-project.org/package=here},
+  }
+  
+@Manual{citetibble,
+  title  = {tibble: Simple Data Frames},
+  author = {Hadley Wickham and Kirill Müller},
+  year   = {2023},
+  note   = {R package version 3.2.1},
+  url    = {https://CRAN.R-project.org/package=tibble},
+  }
+  
+@Manual{citereadr,
+  title  = {readr: Read Rectangular Text Data},
+  author = {Hadley Wickham and Jim Hester and Romain François},
+  year   = {2023},
+  note   = {R package version 2.1.4},
+  url    = {https://CRAN.R-project.org/package=readr},
+  }
+ChatGPT
+
+Thought for 17 seconds
+
+After reviewing your updated references.bib file and comparing it with the citations used in your Quarto (.qmd) code, I noticed some inconsistencies in the citation labels. These inconsistencies can lead to missing references or compilation errors when rendering your document. Below, I'll outline the discrepancies and provide recommendations to ensure that all your citations are correctly matched and that no references are missing based on your code.
+
+1. Citation Label Inconsistencies
+a. tidyverse Package
+In Your Code:
+You cite the tidyverse package as [@CiteTD] (with an uppercase "C").
+In Your references.bib:
+The entry is labeled as @Article{citeTD, ...} (lowercase "c").
+Recommendation:
+
+Option 1: Change the label in your references.bib to match the citation in your code.
+
+bibtex
+Copy code
+@Article{CiteTD,
+  title = {Welcome to the {tidyverse}},
+  author = {Hadley Wickham and Mara Averick and Jennifer Bryan and Winston Chang and Lucy DAgostino McGowan and Romain François and Garrett Grolemund and Alex Hayes and Lionel Henry and Jim Hester and Max Kuhn and Thomas Lin Pedersen and Evan Miller and Stephan Milton Bache and Kirill Müller and Jeroen Ooms and David Robinson and Dana Paige Seidel and Vitalie Spinu and Kohske Takahashi and Davis Vaughan and Claus Wilke and Kara Woo and Hiroaki Yutani},
+  year = {2019},
+  journal = {Journal of Open Source Software},
+  volume = {4},
+  number = {43},
+  pages = {1686},
+  doi = {10.21105/joss.01686},
+}
+Option 2: Update the citation in your code to match the label in references.bib.
+
+In your code, change [@CiteTD] to [@citeTD].
+b. knitr Package
+In Your Code:
+
+You cite knitr as [@knitr].
+In Your references.bib:
+
+The entry is labeled as @Manual{citeknitr, ...}.
+Recommendation:
+
+Option 1: Change the label in your references.bib to match the citation in your code.
+
+bibtex
+Copy code
+@Manual{knitr,
+  title = {knitr: A General-Purpose Package for Dynamic Report Generation in R},
+  author = {Yihui Xie},
+  year = {2022},
+  note = {R package version 1.36},
+  url = {https://yihui.org/knitr/},
+}
+Option 2: Update the citation in your code to match the label in references.bib.
+
+In your code, change [@knitr] to [@citeknitr].
+c. here Package
+In Your Code:
+
+You cite the here package as [@here].
+In Your references.bib:
+
+The entry is labeled as @Manual{citehere, ...}.
+Recommendation:
+
+Option 1: Change the label in your references.bib to match the citation in your code.
+
+bibtex
+Copy code
+@Manual{here,
+  title  = {here: A Simpler Way to Find Your Files},
+  author = {Kirill Müller},
+  year   = {2020},
+  note   = {R package version 1.0.1},
+  url    = {https://CRAN.R-project.org/package=here},
+}
+Option 2: Update the citation in your code to match the label in references.bib.
+
+In your code, change [@here] to [@citehere].
+d. tidyverse vs. tidyverse
+Ensure consistent capitalization in your labels. For example, [@CiteTD] vs. [@citeTD]. Labels are case-sensitive in citation management systems.
+2. Verification of Other Citations
+Let's cross-reference the rest of your citations to ensure they match between your code and references.bib.
+
+Packages and Their Citations
+R: [@citeR]
+
+Reference Entry: @Manual{citeR, ...}
+Match: Yes
+opendatatoronto: [@citeODT]
+
+Reference Entry: @Manual{citeODT, ...}
+Match: Yes
+dplyr: [@citedplyr]
+
+Reference Entry: @Manual{citedplyr, ...}
+Match: Yes
+ggplot2: [@citeGG]
+
+Reference Entry: @Book{citeGG, ...}
+Match: Yes
+tibble: [@citetibble]
+
+Reference Entry: @Manual{citetibble, ...}
+Match: Yes
+readr: [@citereadr]
+
+Reference Entry: @Manual{citereadr, ...}
+Match: Yes
+Collision Data: [@CollisionDataCite]
+
+Reference Entry: @webpage{CollisionDataCite, ...}
+Match: Yes
+Recent Fatalities Article: [@FatalitiesRecent]
+
+Reference Entry: @article{FatalitiesRecent, ...}
+Match: Yes
+Congestion Plan Article: [@CongestionPlan]
+
+Reference Entry: @article{CongestionPlan, ...}
+Match: Yes
+3. Packages Used in Your Code
+Your code uses several packages and functions. Let's ensure all are cited:
+
+tidyverse: Provides ggplot2, dplyr, tibble, readr, etc.
+
+Cited as: [@CiteTD] (needs label correction as discussed)
+dplyr: Functions like mutate(), filter(), group_by(), etc.
+
+Cited as: [@citedplyr]
+ggplot2: Functions like ggplot(), geom_bar(), geom_line(), etc.
+
+Cited as: [@citeGG]
+knitr: Functions like kable()
+
+Cited as: [@knitr] (needs label correction as discussed)
+here: For file path management using here::here()
+
+Cited as: [@here] (needs label correction as discussed)
+opendatatoronto: Used for accessing Open Data Toronto datasets
+
+Cited as: [@citeODT]
+tibble: Used for creating tibbles with tibble()
+
+Cited as: [@citetibble]
+readr: Functions like read_csv(), write_csv()
+
+Cited as: [@citereadr]
+4. Summary of Actions Needed
+Correct Citation Labels:
+
+tidyverse: Ensure the label is consistent ([@citeTD] or [@CiteTD]) in both your code and references.bib.
+
+knitr: Match the label in your code ([@knitr]) with @Manual{knitr, ...} in references.bib.
+
+here: Ensure consistency between [@here] in your code and @Manual{here, ...} in references.bib.
+
+Ensure Labels Are Case-Sensitive:
+
+Citation labels are case-sensitive. Make sure that the capitalization matches exactly between your code and references.bib.
+Update Your references.bib File:
+
+Adjust the labels in your references.bib to match those used in your code, or vice versa.
+5. Updated references.bib with Corrected Labels
+Here's how your references.bib should look with the corrected labels:
+
+bibtex
+Copy code
+@Manual{citeR,
+  title = {R: A Language and Environment for Statistical Computing},
+  author = {{R Core Team}},
+  organization = {R Foundation for Statistical Computing},
+  address = {Vienna, Austria},
+  year = {2023},
+  url = {https://www.R-project.org/},
+}
+
+@Manual{citeODT,
+  title = {opendatatoronto: Access the City of Toronto Open Data Portal},
+  author = {Sharla Gelfand},
+  year = {2022},
+  note = {R package version 0.1.5},
+  url = {https://CRAN.R-project.org/package=opendatatoronto},
+}
+
+@Article{CiteTD,  # Ensure this matches your code citation
+  title = {Welcome to the {tidyverse}},
+  author = {Hadley Wickham and Mara Averick and Jennifer Bryan and Winston Chang and Lucy DAgostino McGowan and Romain François and Garrett Grolemund and Alex Hayes and Lionel Henry and Jim Hester and Max Kuhn and Thomas Lin Pedersen and Evan Miller and Stephan Milton Bache and Kirill Müller and Jeroen Ooms and David Robinson and Dana Paige Seidel and Vitalie Spinu and Kohske Takahashi and Davis Vaughan and Claus Wilke and Kara Woo and Hiroaki Yutani},
+  year = {2019},
+  journal = {Journal of Open Source Software},
+  volume = {4},
+  number = {43},
+  pages = {1686},
+  doi = {10.21105/joss.01686},
+}
+
+@Manual{knitr,  # Corrected label
+  title = {knitr: A General-Purpose Package for Dynamic Report Generation in R},
+  author = {Yihui Xie},
+  year = {2022},
+  note = {R package version 1.36},
+  url = {https://yihui.org/knitr/},
+}
+
+@Manual{citedplyr,
+  title = {dplyr: A Grammar of Data Manipulation},
+  author = {Hadley Wickham and Romain François and Lionel Henry and Kirill Müller and Davis Vaughan},
+  year = {2023},
+  note = {R package version 1.1.4},
+  url = {https://CRAN.R-project.org/package=dplyr}
+}
+
+@Book{citeGG,
+  author = {Hadley Wickham},
+  title = {ggplot2: Elegant Graphics for Data Analysis},
+  publisher = {Springer-Verlag New York},
+  year = {2016},
+  isbn = {978-3-319-24277-4},
+  url = {https://ggplot2.tidyverse.org},
+}
+
+@webpage{CollisionDataCite,
+  title = {Traffic Collisions},
+  author = {City of Toronto},
+  publisher = {City of Toronto, OpenData},
+  url = {https://open.toronto.ca/dataset/police-annual-statistical-report-traffic-collisions/},
+  year = {2024}
+}
+
+@article{FatalitiesRecent,
+  title = {So Far, 30 People Have Died on Toronto’s Roads in 2024},
+  url = {https://www.cbc.ca/news/canada/toronto/30-road-deaths-in-2024-vision-zero-1.7313358},
+  journal = {CBC},
+  author = {Pasieka, Clara},
+  year = {2024},
+  month = {Sep}
+}
+
+@article{CongestionPlan,
+  title = {Toronto Officials Unveil Latest Plans to Ease Traffic Congestion},
+  url = {https://www.cbc.ca/news/canada/toronto/toronto-traffic-congestion-plan-1.7330178},
+  journal = {CBC},
+  author = {CBC News},
+  year = {2024},
+  month = {Sep}
+}
+
+@Manual{here,  # Corrected label
+  title  = {here: A Simpler Way to Find Your Files},
+  author = {Kirill Müller},
+  year   = {2020},
+  note   = {R package version 1.0.1},
+  url    = {https://CRAN.R-project.org/package=here},
+}
+
+@Manual{citetibble,
+  title  = {tibble: Simple Data Frames},
+  author = {Hadley Wickham and Kirill Müller},
+  year   = {2023},
+  note   = {R package version 3.2.1},
+  url    = {https://CRAN.R-project.org/package=tibble},
+}
+
+@Manual{citereadr,
+  title  = {readr: Read Rectangular Text Data},
+  author = {Hadley Wickham and Jim Hester and Romain François},
+  year   = {2023},
+  note   = {R package version 2.1.4},
+  url    = {https://CRAN.R-project.org/package=readr},
+}
+6. Update Your Code to Match Labels
+Alternatively, you can adjust the citation keys in your code to match the labels in your references.bib file. Ensure that:
+
+[@citeTD] is used if your label is citeTD.
+[@citeknitr] is used if your label is citeknitr.
+[@citehere] is used if your label is citehere.
+7. Final Verification
+After making these corrections:
+
+Re-run Your Document: Compile your Quarto document to ensure that all citations are correctly linked and that there are no missing references.
+
+Check for Warnings: If there are any warnings or errors related to citations, revisit the labels and ensure they are consistent.
+
+Conclusion
+By correcting the citation labels to ensure they match between your code and your references.bib file, you'll resolve any discrepancies and avoid missing references in your final document. This attention to detail enhances the professionalism and credibility of your work.
+
+Let me know if you need any further assistance or if you have any questions!
+
+
+
+
+
+
+You said:
+---
+title: "Traffic Collisions in Toronto: Analysis of Key Variables"
+subtitle: "An Analysis of Traffic Collision Data from 2014-2024"
+author: 
+  - Andy Jiang
+thanks: "Code and data are available at: https://github.com/AndyYanxunJiang/toronto-traffic-collisions"
+date: today
+date-format: long
+abstract: "This paper analyzes traffic collisions in Toronto from 2014 to 2024, focusing on patterns across months, days of the week, times of day, and types of collisions, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. The data, sourced from Open Data Toronto, reveals a light W-shaped trend in monthly collisions, with peaks in January and June. Collisions are most frequent between 3 PM and 5 PM, with Friday being the highest day for collisions and Sunday the lowest. Property damage accounts for about 71% of all incidents. The number of fatalities has generally declined over the years, though trends fluctuate annually. These findings highlight the need for ongoing road safety initiatives and targeted interventions during high-risk periods to improve long-term traffic safety."
+format: pdf
+bibliography: references.bib
+---
+
+{r}
+#| include: false
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(knitr)
+library(opendatatoronto)
+library(dplyr)
+library(here)
+
+# Load the cleaned data
+data <- read_csv(here::here("data/analysis_data/cleaned_collision_data.csv"))
+
+# Convert relevant variables to factors
+data <- data %>%
+  mutate(
+    OCC_MONTH = factor(OCC_MONTH, levels = month.name),
+    INJURY_COLLISIONS = as.factor(INJURY_COLLISIONS),
+    FTR_COLLISIONS = as.factor(FTR_COLLISIONS),
+    PD_COLLISIONS = as.factor(PD_COLLISIONS)
+  )
+
+
+# Introduction
+Traffic collisions remain a major public safety concern in urban areas, causing both human and economic costs. In cities like Toronto, understanding the temporal and categorical distribution of traffic collisions is crucial for reducing the incidence of accidents and improving road safety. Insights gained from such data allow policymakers and city planners to implement targeted interventions, especially during periods when collisions are most likely to occur.
+
+This paper examines traffic collisions in Toronto between 2014 and 2024, a decade that has seen substantial changes in road usage, vehicle technology, and city infrastructure. Despite the growing availability of traffic data, there is still a need for detailed analysis of collision patterns over time and by type. This paper seeks to fill this gap by identifying trends in monthly, daily, and hourly collision occurrences, and assessing the proportion of different collision types, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. These insights can inform more effective road safety policies, particularly during high-risk periods.
+
+The key questions addressed in this paper are: (1) How do traffic collisions vary by month, day of week, and time of day? (2) What are the dominant collision types, and what do they reveal about driving behavior and road safety? (3) What are the long-term trends in fatalities, and how might they evolve in the future?
+
+This paper is organized as follows: @sec-data describes the data and methodology. @sec-results presents the results, including visualizations of key trends. Finally, @sec-discussion provides a detailed discussion of the findings and their implications for road safety and policy interventions.
+
+
+# Data {#sec-data}
+The data used in this paper came from the Open Data Toronto portal through the library opendatatoronto [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open source statistical programming language R [@citeR]. Libraries tidyverse [@citeTD], knitr [@citeknitr], tibble [@citetibble], readr [@citereadr], and dplyr [@citedplyr] were used for simulating, cleaning and testing. The package here [@citehere] was utilized for managing file paths to ensure reproducibility. Graphics were made using ggplot2 [@citeGG].
+
+## Measurement
+The traffic collision data is collected by the Toronto Police and made publicly available through Open Data Toronto, where it is graded as Gold with a 100% data quality score. Each entry reflects a documented collision incident, capturing details like time, location, collision type, and vehicle type. However, the dataset does not include information on weather conditions or road quality, which could provide additional context for analyzing collision trends.
+
+## Traffic Collision Analysis Data
+The cleaned dataset includes several key variables: Month, Day of the Week, Hour, Year, Fatalities, Injury Collisions, Failed to Remain (FTR) Collisions, and Property Damage (PD) Collisions. These variables allow for an analysis of collision frequency by time and type of incident.
+
+Certain variables such as Longitude, Latitude, Police Division, and Neighborhood information were removed as they were not necessary for this analysis. Additionally, vehicle type data was excluded since the majority of collisions involved automobiles, making this variable less useful for our purpose.
+
+@tbl-1 provides a random sample of the cleaned dataset, displaying all relevant variables used for analysis:
+
+{r}
+#| label: tbl-1
+#| tbl-cap: Random sample of the cleaned collision data
+#| echo: false
+
+set.seed(127)
+data %>%
+  sample_n(10) %>%
+  kable(
+    col.names = c(
+      "Month", "Day of Week", "Year", "Hour", "Fatalities",
+      "Injury Collisions", "FTR Collisions", "PD Collisions"
+    ),
+    align = "c"
+  )
+
+
+
+# Results {#sec-results}
+
+## Collisions by Day of the Week
+@fig-collisions-day shows the distribution of traffic collisions by the day of the week. The data reveals that the highest number of collisions occurs on Friday, while Sunday has the lowest number of incidents. There is a significant difference between Friday and Sunday, with approximately 60% more collisions occurring on Fridays. During the week, Monday has the lowest number of collisions among weekdays, though it is still higher than weekends. Tuesday, Wednesday, and Thursday exhibit similar collision counts, which are slightly lower than Friday but higher than Monday.
+
+The overall trend suggests that traffic volume and collision risk peak towards the end of the workweek, likely due to higher road activity on Fridays as people prepare for the weekend. The decline on weekends, particularly on Sundays, can be attributed to lower traffic volume and fewer activities requiring vehicle use.
+
+{r}
+#| label: fig-collisions-day
+#| fig-cap: Total traffic collisions by day of the week from 2014 to 2024
+#| echo: false
+
+data$OCC_DOW <- factor(data$OCC_DOW,
+  levels = c(
+    "Monday", "Tuesday", "Wednesday", "Thursday",
+    "Friday", "Saturday", "Sunday"
+  )
+)
+ggplot(data, aes(x = OCC_DOW)) +
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
+  theme_minimal() +
+  labs(
+    title = "Traffic Collisions by Day of the Week",
+    x = "Day of Week", y = "Total Count of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+## Collisions by Month
+@fig-collisions-month shows the distribution of traffic collisions by month from 2014 to 2024. The data reveals a light W-shaped pattern, with collisions peaking at the start, middle, and end of the year. The highest counts occur in January and June, while the end of the year also sees an increase, though not as high as the other two peaks. This pattern could be linked to weather conditions, particularly during winter months like January when icy roads increase the likelihood of accidents. June's peak may coincide with higher traffic volumes during the summer as people travel for vacations and events. The increase toward the end of the year could reflect the impact of holiday travel and busy shopping periods.
+
+{r}
+#| label: fig-collisions-month
+#| fig-cap: Monthly traffic collision counts in Toronto from 2014 to 2024.
+#| echo: false
+
+ggplot(data, aes(x = OCC_MONTH)) +
+  geom_bar(position = "dodge", stat = "count", fill = "lightblue") +
+  theme_minimal() +
+  labs(
+    title = "Traffic Collisions by Month",
+    x = "Month", y = "Total Count of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+## Collisions by Hour of the Day
+@fig-collisions-hour shows the distribution of traffic collisions by hour of the day. The data indicates that collisions start to increase around 6 AM, coinciding with the start of the workday and upcoming rush hour traffic. The number of collisions continues to rise until it reaches a peak between 3 PM and 5 PM, during the afternoon rush hour, when roads are crowded with people returning home from work. After 6 PM, the number of collisions starts to decline as traffic decreases. The lowest collision rates are observed between midnight and 5 AM, when most people are asleep, and there are fewer vehicles on the road. This pattern is expected, as traffic volume and collision risk are closely correlated.
+
+{r}
+#| label: fig-collisions-hour
+#| fig-cap: Total collisions by hour of the day from 2014 to 2024
+#| echo: false
+
+data$OCC_HOUR[is.na(data$OCC_HOUR)] <- 0
+data %>%
+  group_by(OCC_HOUR) %>%
+  summarise(Total_Collisions = sum(INJURY_COLLISIONS == "YES" | 
+                                     FTR_COLLISIONS == "YES" | 
+                                     PD_COLLISIONS == "YES", na.rm = TRUE)) %>%
+  ggplot(aes(x = OCC_HOUR, y = Total_Collisions)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  theme_minimal() +
+  scale_x_continuous(breaks = 0:23) +
+  labs(
+    title = "Traffic Collisions by Hour of the Day",
+    x = "Hour of the Day",
+    y = "Total Number of Collisions"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5),
+    panel.grid.major.x = element_line(linewidth = 1.2),
+    panel.grid.major.y = element_line(linewidth = 0.5)
+  )
+
+
+## Collision Types
+@fig-collisions-type shows the proportion of each collision type. Property damage collisions dominate, accounting for approximately 71% of all recorded incidents. This suggests that most collisions involve vehicle-to-vehicle impacts or damage to roadside objects, without causing significant injuries. Failed to remain and injury collisions are relatively similar in proportion, each making up a smaller share of total collisions. Although these types can overlap (e.g., a failed to remain collision may also involve injury), the overlap is small enough to justify using a pie chart for this analysis. A more detailed analysis, using a Venn diagram, could account for these overlaps, but the overall trend remains clear: property damage is the most frequent outcome of traffic collisions.
+
+{r}
+#| label: fig-collisions-type
+#| fig-cap: Proportion of each type of traffic collisions (2014–2024).
+#| echo: false
+
+collision_summary <- data %>%
+  summarise(
+    Injury_Collisions = sum(INJURY_COLLISIONS == "YES"),
+    FTR_Collisions = sum(FTR_COLLISIONS == "YES"),
+    PD_Collisions = sum(PD_COLLISIONS == "YES")
+  )
+
+collision_summary_long <- collision_summary %>%
+  pivot_longer(
+    cols = everything(), names_to = "Collision_Type",
+    values_to = "Count"
+  ) %>%
+  mutate(Collision_Type = recode(Collision_Type,
+    "Injury_Collisions" = "Injury Collisions",
+    "FTR_Collisions" =
+      "Failed to Remain Collisions",
+    "PD_Collisions" =
+      "Property Damage Collisions"
+  ))
+
+collision_summary_long <- collision_summary_long %>%
+  mutate(Percentage = round(Count / sum(Count) * 100, 2))
+
+ggplot(collision_summary_long, aes(x = "", y = Count, fill = Collision_Type)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  geom_text(aes(label = paste0(Percentage, "%")),
+    position = position_stack(vjust = 0.5)
+  ) +
+  scale_fill_manual(values = c(
+    "Injury Collisions" = "lightblue",
+    "Failed to Remain Collisions" = "skyblue",
+    "Property Damage Collisions" = "#4682B4"
+  )) +
+  theme_void() +
+  labs(title = "Proportion of Each Collision Type") +
+  theme(
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+## Fatalities
+@fig-fatalities illustrates the trend in fatalities over time. The data shows fluctuations year by year, with the number of fatalities rising and falling between 2014 and 2024. However, the overall trend points to a gradual decline in fatalities, with the count for 2024 reaching its lowest point at 20 (as of late July). It is important to note that this number may rise as more data becomes available for the remainder of the year. The decline in fatalities may be attributed to improvements in road safety regulations, better vehicle technology, and more effective public safety policies. Nonetheless, the year-to-year fluctuations suggest that external factors, such as weather and traffic volume, continue to play a significant role in accident severity.
+
+{r}
+#| label: fig-fatalities
+#| fig-cap: Yearly trend in fatalities from collisions (2014-2024)
+#| echo: false
+
+data %>%
+  group_by(OCC_YEAR) %>%
+  summarize(Total_Fatalities = sum(FATALITIES, na.rm = TRUE)) %>%
+  ggplot(aes(x = OCC_YEAR, y = Total_Fatalities)) +
+  geom_line(color = "darkred", linewidth = 1) +
+  scale_x_continuous(breaks = seq(min(data$OCC_YEAR),
+    max(data$OCC_YEAR),
+    by = 1
+  )) +
+  theme_minimal() +
+  labs(
+    title = "Fatalities by Year",
+    x = "Year",
+    y = "Number of Fatalities"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14),
+    panel.grid.major.x = element_line(linewidth = 0.8, color = "lightgrey")
+  )
+
+
+
+
+\newpage
+# Discussion {#sec-discussion}
+The analysis of traffic collisions in Toronto between 2014 and 2024 reveals several patterns, each offering insights into how urban life, driving habits, and external factors like weather affect road safety.
+
+## Day of the Week Analysis
+The distribution of traffic collisions across the days of the week provides a revealing look at how human behavior and traffic flow influence accident frequency. Friday, as the day with the highest collision rate, indicates a heightened risk toward the end of the workweek. This trend may be driven by multiple factors, including fatigue from the workweek, a possible rush to get home, and increased social activities as people transition into their weekend plans. Interestingly, Friday shows 60% more collisions than Sunday, a day characterized by reduced travel and leisure activities. The marked difference between these two days points to how daily schedules and behavioral changes significantly impact road safety.
+
+Sunday, with the lowest number of collisions, likely benefits from reduced road congestion, as many people tend to stay home or partake in local activities that don’t require long-distance travel. This also suggests that weekends, despite the occasional recreational travel, generally have safer road conditions. It is worth considering whether policies or public safety campaigns targeted at reducing Friday incidents could be beneficial, perhaps through encouraging more cautious driving during this high-risk period.
+
+## Monthly Patterns
+The light W-shaped pattern in monthly traffic collisions offers valuable insight into the seasonal and cultural influences that drive collision frequency. January, the peak month for collisions, aligns with Canada’s harsh winter conditions. The combination of icy roads, snowstorms, and reduced visibility presents a high risk for accidents. However, an additional contributing factor may be the increased road activity related to New Year’s celebrations, which often involve parties, alcohol consumption, and late-night travel. This brings attention to the need for targeted safety measures during major holidays, such as stricter policing of impaired driving.
+
+The second peak in June likely reflects the start of summer activities. Increased road travel for vacations, social events, and outdoor activities contributes to higher traffic volumes and, consequently, more collisions. The third rise at the end of the year, though not as pronounced, coincides with the busy holiday season when shopping, travel, and family visits dominate. Again, this suggests that city officials could benefit from strengthening public safety campaigns during these periods, with a particular focus on distracted driving, impaired driving, and road congestion management. As of last week, Toronto is addressing congestion with a plan that includes new fines, levies on construction projects, and automated enforcement, aimed at reducing traffic disruptions and improving road safety. These measures are crucial as the city's growing population and post-pandemic travel patterns have worsened congestion [@CongestionPlan].
+
+## Hourly Patterns
+Examining the distribution of collisions by hour of the day reveals a pronounced correlation between daily routines and road accidents. Collisions begin increasing sharply around 6 AM, as people wake up and head to work or school, contributing to morning rush hour congestion. This increase continues until 3 PM - 5 PM, when the evening rush hour dominates. The afternoon peak is particularly notable, reflecting the combined impact of people leaving work, running errands, and picking up children from school. The fact that this period consistently shows the highest number of collisions highlights the need for targeted road safety measures during rush hours, such as speed regulation, better traffic management systems, and public awareness campaigns focusing on attentive driving during high-congestion periods.
+
+After 6 PM, collisions decline drastically as road congestion eases and people settle into their evening routines. The midnight to 5 AM period records the fewest collisions, as expected, with minimal road activity during these hours. However, late-night incidents may still be influenced by riskier behaviors, such as driving under the influence of alcohol, making this period an important focus for law enforcement and awareness campaigns aimed at reducing late-night impaired driving.
+
+## Collision Types Implications
+The distribution of collision types adds depth to our understanding of how most accidents unfold. The dominance of property damage collisions—representing approximately 71% of all incidents—suggests that the majority of accidents are minor, involving either physical contact between vehicles or collisions with roadside infrastructure like signs or barriers. These accidents often result in fender benders or minor vehicle damage but don’t necessarily lead to injuries or fatalities.
+
+A smaller proportion of collisions involve injuries, where physical harm occurs to drivers or passengers. While these are slightly fewer in number compared to failed to remain collisions, they still represent a more severe subset of accidents that require further attention. Failed to remain collisions, where drivers flee the scene of the accident, are more common than injury collisions but have the least overlap with both injury and property damage incidents. This minimal overlap suggests that hit-and-run cases are a distinct category of accidents, often disconnected from the other two types, which might require different preventive strategies—such as better surveillance systems or harsher penalties for offenders.
+
+Given that fatalities are extreme outliers in terms of frequency, they warrant a separate analysis. While they occur in far fewer instances than injuries or property damage collisions, their severe consequences make them critically important for road safety planning. Fatal collisions often involve higher speeds, riskier driving behavior (such as driving under the influence), or particularly dangerous road conditions (e.g., icy roads). This reinforces the need for focused interventions targeting these outlier events.
+
+## Fatalities Insights
+The trend of declining fatalities from 2014 to 2024 is a positive outcome, reflecting the impact of improved road safety regulations, advances in vehicle technology (such as airbags, anti-lock brakes, and collision avoidance systems), and better public awareness of safe driving practices. However, it is important to acknowledge that this downward trend is influenced by a range of external factors, many of which are difficult to control. In a country like Canada, where winter conditions create significant challenges for drivers, weather-related accidents may remain an unfortunate reality. While safety campaigns can prepare drivers for icy or snowy conditions, accidents linked to poor weather may never be completely eliminated.
+
+Fatalities caused by controllable factors, such as distracted driving (e.g., using phones) or drunk driving, can be addressed more directly through stricter enforcement and educational campaigns. Policies that target these behaviors—such as harsher penalties for phone use while driving and regular sobriety checkpoints—can help reduce fatalities related to human error. While the 10-year period analyzed in this study reveals a favorable downward trend, it is a relatively short time frame for long-term safety assessments. Extrapolating from this data suggests that fatalities may continue to decline, but more robust, longitudinal data is needed to draw firmer conclusions.
+
+As of early September, the number of road fatalities in Toronto stands at 30 [@FatalitiesRecent], which still reflects a decline, but with a few months remaining in the year, it is unclear whether the final tally will continue this downward trend. This uncertainty underscores the importance of remaining vigilant and adaptable when it comes to road safety measures and policies, as the near future trend remains uncertain. Predicting future trends based on present data offers a useful tool for policymakers, but continual monitoring and adaptation of road safety strategies are essential to maintaining and enhancing this progress.
+
+
+\newpage
+
+
+# References
+
+
+this is my new paper
+ChatGPT
+
+Thought for 11 seconds
+
+Thank you for sharing your updated paper. I've reviewed it to ensure that all previous issues have been addressed and to check for any remaining discrepancies. Here are my observations:
+
+1. Citation Labels Consistency
+In Your Data Section:
+
+The data used in this paper came from the Open Data Toronto portal through the library opendatatoronto [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open-source statistical programming language R [@citeR]. Libraries tidyverse [@citeTD], knitr [@citeknitr], tibble [@citetibble], readr [@citereadr], and dplyr [@citedplyr] were used for simulating, cleaning, and testing. The package here [@citehere] was utilized for managing file paths to ensure reproducibility. Graphics were made using ggplot2 [@citeGG].
+
+Observation:
+
+The citation labels in your text (@citeODT, @CollisionDataCite, @citeR, @citeTD, @citeknitr, @citetibble, @citereadr, @citedplyr, @citehere, @citeGG) match the labels in your references.bib file.
+Action: Ensure that these labels are exactly the same in both your text and references.bib file, including case sensitivity.
+
+2. Packages Used and Cited
+Packages Loaded in Your Code:
+
+r
+Copy code
+library(tidyverse)
+library(knitr)
+library(opendatatoronto)
+library(dplyr)
+library(here)
+Functions Used from These Packages:
+
+tidyverse: Includes ggplot2, dplyr, tibble, readr, and more.
+Functions like mutate(), group_by(), summarise(), ggplot(), etc.
+knitr: Used for creating tables with kable().
+opendatatoronto: Used for accessing the Open Data Toronto portal.
+dplyr: Data manipulation functions.
+here: Used for file path management with here::here().
+Additional Packages Used Implicitly:
+
+tibble: Creating tibbles with tibble().
+readr: Reading and writing CSV files with read_csv() and write_csv().
+Citations:
+
+You have appropriately cited all the packages you've used, including tibble and readr, which are part of the tidyverse but are also cited separately.
+3. BibTeX Entries Verification
+Your references.bib File Includes:
+
+R: @Manual{citeR, ...}
+opendatatoronto: @Manual{citeODT, ...}
+tidyverse: @Article{citeTD, ...}
+knitr: @Manual{citeknitr, ...}
+dplyr: @Manual{citedplyr, ...}
+ggplot2: @Book{citeGG, ...}
+here: @Manual{citehere, ...}
+tibble: @Manual{citetibble, ...}
+readr: @Manual{citereadr, ...}
+Data Sources and Articles: @webpage{CollisionDataCite, ...}, @article{FatalitiesRecent, ...}, @article{CongestionPlan, ...}
+Observation:
+
+All citation keys in your paper match the labels in your references.bib file.
+Action:
+
+Double-check for any typos or inconsistencies in the labels to ensure accurate citation rendering.
+4. Code Chunks and Library Calls
+Code Chunks:
+
+Your code chunks are correctly specified with {r} at the beginning, which is appropriate for R code in Quarto or R Markdown documents.
+Library Calls:
+
+You've included all necessary library calls at the beginning of your code, including here, which was previously missing.
+5. Graphs and Warnings
+Previous Warning Resolved:
+
+You updated instances of size to linewidth in geom_line() and element_line(), which resolves the warnings related to deprecated arguments in ggplot2.
+No Remaining Warnings:
+
+After these updates, you should no longer receive warnings about deprecated arguments when running your code.
+6. Overall Consistency and Accuracy
+Package Usage:
+
+All packages used in your code are cited in your methodology section and included in your references.bib file.
+Citations:
+
+Citation labels are consistent between your text and references.bib.
+Code Execution:
+
+Your code should execute without errors, and all graphs and analyses should render correctly.
+7. Final Recommendations
+Update Package Versions (Optional):
+
+Consider updating the year and version information in your BibTeX entries to reflect the versions of the packages you actually used.
+Session Information:
+
+For reproducibility, you might include session information (e.g., output from sessionInfo()) in an appendix.
+Document Formatting:
+
+Ensure that your document compiles correctly into PDF format and that all figures and tables are properly displayed and referenced.
+Conclusion
+Your updated paper appears to have addressed all previous issues. The citations are consistent, the packages used are appropriately cited, and the code should run without any warnings or errors.
+
+If you have any specific questions or need further assistance with any part of your paper, please let me know!
