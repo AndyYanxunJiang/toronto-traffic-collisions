@@ -3,8 +3,8 @@ title: "Traffic Collisions in Toronto: Analysis of Key Variables"
 subtitle: "An Analysis of Traffic Collision Data from 2014-2024"
 author: 
   - Andy Jiang
-thanks: "Code and data are available at: https://github.com/AndyYanxunJiang/toronto-traffic-collisions.git"
-date: 26 September 2024
+thanks: "Code and data are available at: https://github.com/AndyYanxunJiang/toronto-traffic-collisions"
+date: today
 date-format: long
 abstract: "This paper analyzes traffic collisions in Toronto from 2014 to 2024, focusing on patterns across months, days of the week, times of day, and types of collisions, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. The data, sourced from Open Data Toronto, reveals a light W-shaped trend in monthly collisions, with peaks in January and June. Collisions are most frequent between 3 PM and 5 PM, with Friday being the highest day for collisions and Sunday the lowest. Property damage accounts for about 71% of all incidents. The number of fatalities has generally declined over the years, though trends fluctuate annually. These findings highlight the need for ongoing road safety initiatives and targeted interventions during high-risk periods to improve long-term traffic safety."
 format: pdf
@@ -20,6 +20,7 @@ library(tidyverse)
 library(knitr)
 library(opendatatoronto)
 library(dplyr)
+library(here)
 
 # Load the cleaned data
 data <- read_csv(here::here("data/analysis_data/cleaned_collision_data.csv"))
@@ -37,7 +38,7 @@ data <- data %>%
 # Introduction
 Traffic collisions remain a major public safety concern in urban areas, causing both human and economic costs. In cities like Toronto, understanding the temporal and categorical distribution of traffic collisions is crucial for reducing the incidence of accidents and improving road safety. Insights gained from such data allow policymakers and city planners to implement targeted interventions, especially during periods when collisions are most likely to occur.
 
-This paper examines traffic collisions in Toronto between 2014 and 2024. It aims to identify trends in monthly, daily, and hourly collision occurrences and assess the proportion of different collision types, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. Analyzing these trends can guide the development of more effective road safety policies and public awareness campaigns.
+This paper examines traffic collisions in Toronto between 2014 and 2024, a decade that has seen substantial changes in road usage, vehicle technology, and city infrastructure. Despite the growing availability of traffic data, there is still a need for detailed analysis of collision patterns over time and by type. This paper seeks to fill this gap by identifying trends in monthly, daily, and hourly collision occurrences, and assessing the proportion of different collision types, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. These insights can inform more effective road safety policies, particularly during high-risk periods.
 
 The key questions addressed in this paper are: (1) How do traffic collisions vary by month, day of week, and time of day? (2) What are the dominant collision types, and what do they reveal about driving behavior and road safety? (3) What are the long-term trends in fatalities, and how might they evolve in the future?
 
@@ -45,18 +46,21 @@ This paper is organized as follows: @sec-data describes the data and methodology
 
 
 # Data {#sec-data}
-The data used in this paper came from the OpenData Toronto portal through the library `opendatatoronto` [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open source statistical programming language R [@citeR]. Libraries `tidyverse` [@CiteTD], `knitr` [@knitr] and `dplyr` [@citedplyr] were used for simulating, cleaning and testing. Graphics were made using `ggplot2` [@citeGG].
+The data used in this paper came from the Open Data Toronto portal through the library `opendatatoronto` [@citeODT], specifically the Police Annual Statistical Report - Traffic Collisions [@CollisionDataCite]. Data were cleaned and analyzed using the open source statistical programming language R [@citeR]. Libraries `tidyverse` [@citeTD], `knitr` [@citeknitr], `tibble` [@citetibble], `readr` [@citereadr], and `dplyr` [@citedplyr] were used for simulating, cleaning and testing. The package `here` [@citehere] was utilized for managing file paths to ensure reproducibility. Graphics were made using `ggplot2` [@citeGG].
+
+## Measurement
+The traffic collision data is collected by the Toronto Police and made publicly available through Open Data Toronto, where it is graded as Gold with a 100% data quality score. Each entry reflects a documented collision incident, capturing details like time, location, collision type, and vehicle type. However, the dataset does not include information on weather conditions or road quality, which could provide additional context for analyzing collision trends.
 
 ## Traffic Collision Analysis Data
 The cleaned dataset includes several key variables: Month, Day of the Week, Hour, Year, Fatalities, Injury Collisions, Failed to Remain (FTR) Collisions, and Property Damage (PD) Collisions. These variables allow for an analysis of collision frequency by time and type of incident.
 
 Certain variables such as Longitude, Latitude, Police Division, and Neighborhood information were removed as they were not necessary for this analysis. Additionally, vehicle type data was excluded since the majority of collisions involved automobiles, making this variable less useful for our purpose.
 
-@tbl-1 provides a random sample of the cleaned dataset, showing key variables such as the occurrence time and type of collision:
+@tbl-1 provides a random sample of the cleaned dataset, displaying all relevant variables used for analysis:
 
 ```{r}
 #| label: tbl-1
-#| tbl-cap: Sample of the cleaned collision data
+#| tbl-cap: Random sample of the cleaned collision data
 #| echo: false
 
 set.seed(127)
@@ -156,7 +160,7 @@ data %>%
 ```
 
 ## Collision Types
-@fig-collisions-type shows the proportion of each collision type. Property damage collisions dominate, accounting for approximately 71% of all recorded incidents. This suggests that most collisions involve vehicle-to-vehicle impacts or damage to roadside objects, without causing significant injuries. Failed to remain and injury collisions are relatively similar in proportion, each making up a smaller share of total collisions. Although these types can overlap (e.g., a failed-to-remain collision may also involve injury), the overlap is small enough to justify using a pie chart for this analysis. A more detailed analysis, using a Venn diagram, could account for these overlaps, but the overall trend remains clear: property damage is the most frequent outcome of traffic collisions.
+@fig-collisions-type shows the proportion of each collision type. Property damage collisions dominate, accounting for approximately 71% of all recorded incidents. This suggests that most collisions involve vehicle-to-vehicle impacts or damage to roadside objects, without causing significant injuries. Failed to remain and injury collisions are relatively similar in proportion, each making up a smaller share of total collisions. Although these types can overlap (e.g., a failed to remain collision may also involve injury), the overlap is small enough to justify using a pie chart for this analysis. A more detailed analysis, using a Venn diagram, could account for these overlaps, but the overall trend remains clear: property damage is the most frequent outcome of traffic collisions.
 
 ```{r}
 #| label: fig-collisions-type
@@ -259,7 +263,7 @@ After 6 PM, collisions decline drastically as road congestion eases and people s
 ## Collision Types Implications
 The distribution of collision types adds depth to our understanding of how most accidents unfold. The dominance of property damage collisions—representing approximately 71% of all incidents—suggests that the majority of accidents are minor, involving either physical contact between vehicles or collisions with roadside infrastructure like signs or barriers. These accidents often result in fender benders or minor vehicle damage but don’t necessarily lead to injuries or fatalities.
 
-A smaller proportion of collisions involve injuries, where physical harm occurs to drivers or passengers. While these are slightly fewer in number compared to failed-to-remain collisions, they still represent a more severe subset of accidents that require further attention. Failed-to-remain collisions, where drivers flee the scene of the accident, are more common than injury collisions but have the least overlap with both injury and property damage incidents. This minimal overlap suggests that hit-and-run cases are a distinct category of accidents, often disconnected from the other two types, which might require different preventive strategies—such as better surveillance systems or harsher penalties for offenders.
+A smaller proportion of collisions involve injuries, where physical harm occurs to drivers or passengers. While these are slightly fewer in number compared to failed to remain collisions, they still represent a more severe subset of accidents that require further attention. Failed to remain collisions, where drivers flee the scene of the accident, are more common than injury collisions but have the least overlap with both injury and property damage incidents. This minimal overlap suggests that hit-and-run cases are a distinct category of accidents, often disconnected from the other two types, which might require different preventive strategies—such as better surveillance systems or harsher penalties for offenders.
 
 Given that fatalities are extreme outliers in terms of frequency, they warrant a separate analysis. While they occur in far fewer instances than injuries or property damage collisions, their severe consequences make them critically important for road safety planning. Fatal collisions often involve higher speeds, riskier driving behavior (such as driving under the influence), or particularly dangerous road conditions (e.g., icy roads). This reinforces the need for focused interventions targeting these outlier events.
 
