@@ -8,6 +8,8 @@ date: today
 date-format: long
 abstract: "This paper analyzes traffic collisions in Toronto from 2014 to 2024, focusing on patterns across months, days of the week, times of day, and types of collisions, including injuries, property damage, and failed to remain incidents. Fatalities are analyzed separately as a distinct trend. The data, sourced from Open Data Toronto, reveals a light W-shaped trend in monthly collisions, with peaks in January and June. Collisions are most frequent between 3 PM and 5 PM, with Friday being the highest day for collisions and Sunday the lowest. Property damage accounts for about 71% of all incidents. The number of fatalities has generally declined over the years, though trends fluctuate annually. These findings highlight the need for ongoing road safety initiatives and targeted interventions during high-risk periods to improve long-term traffic safety."
 format: pdf
+toc: true
+number-sections: true
 bibliography: references.bib
 ---
 
