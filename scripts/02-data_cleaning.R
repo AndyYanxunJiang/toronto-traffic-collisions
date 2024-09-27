@@ -17,9 +17,11 @@ raw_data <- read_csv("data/raw_data/raw_collision_data.csv")
 # location specific relationships.
 # Vehicle type removed due to dominantly being automobile
 cleaned_data <- raw_data %>%
-  select(-...1, -OCC_DATE, -X_id, -DIVISION, -HOOD_158, -LONG_WGS84,
-         -LAT_WGS84, -geometry, -NEIGHBOURHOOD_158, -AUTOMOBILE, -MOTORCYCLE,
-         -PASSENGER, -BICYCLE, -PEDESTRIAN)
+  select(
+    -...1, -OCC_DATE, -X_id, -DIVISION, -HOOD_158, -LONG_WGS84,
+    -LAT_WGS84, -geometry, -NEIGHBOURHOOD_158, -AUTOMOBILE, -MOTORCYCLE,
+    -PASSENGER, -BICYCLE, -PEDESTRIAN
+  )
 
 #### Save the cleaned data ####
 write_csv(cleaned_data, "data/analysis_data/cleaned_collision_data.csv")
